@@ -597,6 +597,22 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .login-card input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
   .login-card button{ width:100%; }
 
+  /* --- v10: table actions + detail --- */
+  .row-actions{ white-space:nowrap; }
+  .mini{ font-size:11.5px; font-weight:600; padding:3px 9px; border-radius:7px; border:1px solid var(--line-strong); background:var(--paper); color:var(--ink); cursor:pointer; }
+  .mini:hover{ background:var(--soft); }
+  .mini.del-btn{ color:#b42318; border-color:#f0c9c4; margin-left:6px; font-size:14px; line-height:1; padding:2px 8px; }
+  .mini.del-btn:hover{ background:#fdecea; }
+  .detail-row .detail-cell{ background:var(--soft); color:var(--muted); font-size:12px; white-space:normal; }
+  .detail-row .detail-cell b{ color:var(--ink); font-weight:600; }
+
+  /* --- v11: date filter + pagination --- */
+  .date-lbl{ display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); white-space:nowrap; }
+  .date-lbl input{ font-size:13px; padding:7px 9px; border:1px solid var(--line-strong); border-radius:8px; background:var(--paper); color:var(--ink); }
+  .hist-pager{ display:flex; align-items:center; gap:12px; margin-top:12px; }
+  .hist-pager button{ padding:6px 12px; font-size:13px; }
+  #histPageInfo{ font-size:12.5px; color:var(--muted); }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -682,7 +698,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v9</span>
+      <span class="version" id="version">v11</span>
     </div>
   </div>
 </nav>
@@ -783,17 +799,23 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     <div id="historyBody">
       <div class="hist-toolbar">
         <input id="histSearch" type="text" placeholder="Filter by serial, customer, or order #">
+        <label class="date-lbl">From <input id="histFrom" type="date"></label>
+        <label class="date-lbl">To <input id="histTo" type="date"></label>
         <button class="ghost" id="histRefresh">Refresh</button>
         <button class="ghost" id="histCsv">Export CSV</button>
       </div>
       <div class="table-wrap">
         <table class="hist-table">
           <thead><tr>
-            <th>Date</th><th>Customer</th><th>Order #</th><th>Serial</th>
-            <th>Case</th><th>CPU</th><th>GPU</th><th>RAM</th><th>Storage</th><th>Status</th>
+            <th>Date</th><th>Customer</th><th>Order #</th><th>Serial</th><th>Status</th><th></th>
           </tr></thead>
           <tbody id="histBody"></tbody>
         </table>
+      </div>
+      <div class="hist-pager" id="histPager">
+        <button class="ghost" id="histPrev">Prev</button>
+        <span id="histPageInfo"></span>
+        <button class="ghost" id="histNext">Next</button>
       </div>
       <div class="hist-note" id="histNote"></div>
     </div>
@@ -828,6 +850,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   const histRefresh = document.getElementById('histRefresh');
   const histBody    = document.getElementById('histBody');
   const histNote    = document.getElementById('histNote');
+  const histFrom     = document.getElementById('histFrom');
+  const histTo       = document.getElementById('histTo');
+  const histPrev     = document.getElementById('histPrev');
+  const histNext     = document.getElementById('histNext');
+  const histPageInfo = document.getElementById('histPageInfo');
+  const histPager    = document.getElementById('histPager');
   const customerEl  = document.getElementById('customer');
   const orderEl     = document.getElementById('order');
   const statusEl    = document.getElementById('status');
@@ -1207,11 +1235,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     sheetStatus.className = 'sheet-status ok';
     sheetStatus.textContent = 'Saved ' + added + ' row' + (added===1?'':'s') +
       (skipped ? (', skipped ' + skipped + ' already logged') : '') + '.';
-    loadHistory();
+    await loadHistory();
   }
 
   // ---- History ----
   let historyRows = [];
+  const PAGE_SIZE = 50;
+  let histPage = 0;
   async function loadHistory(){
     if (!SB || !session) return;
     histNote.textContent = 'Loading\u2026';
@@ -1219,41 +1249,81 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       .from('pc_log')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(500);
+      .limit(1000);
     if (error){ histNote.textContent = 'Could not load history: ' + (error.message || 'error'); return; }
     historyRows = data || [];
+    histPage = 0;
+    histNote.textContent = '';
     renderHistory();
   }
   function esc(v){ return (v==null?'':String(v)).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
   function fmtDate(v){ if(!v) return ''; const d=new Date(v); return isNaN(d.getTime())?'':d.toLocaleDateString(); }
-  function renderHistory(){
+  function getFiltered(){
     const q = (histSearch.value || '').trim().toLowerCase();
-    const rows = q ? historyRows.filter(function(r){
-      return (r.serial||'').toLowerCase().indexOf(q) > -1 ||
-             (r.customer||'').toLowerCase().indexOf(q) > -1 ||
-             (r.order_no||'').toLowerCase().indexOf(q) > -1;
-    }) : historyRows;
-    histBody.innerHTML = rows.map(function(r){
+    const fromT = histFrom.value ? new Date(histFrom.value + 'T00:00:00') : null;
+    const toT   = histTo.value ? new Date(histTo.value + 'T23:59:59.999') : null;
+    return historyRows.filter(function(r){
+      if (q){
+        const hit = (r.serial||'').toLowerCase().indexOf(q) > -1 ||
+                    (r.customer||'').toLowerCase().indexOf(q) > -1 ||
+                    (r.order_no||'').toLowerCase().indexOf(q) > -1;
+        if (!hit) return false;
+      }
+      if (fromT || toT){
+        const t = new Date(r.generated_at || r.created_at);
+        if (fromT && t < fromT) return false;
+        if (toT && t > toT) return false;
+      }
+      return true;
+    });
+  }
+
+  function renderHistory(){
+    const filtered = getFiltered();
+    const total = filtered.length;
+    const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (histPage > pages - 1) histPage = pages - 1;
+    if (histPage < 0) histPage = 0;
+    const startIdx = histPage * PAGE_SIZE;
+    const pageRows = filtered.slice(startIdx, startIdx + PAGE_SIZE);
+    histBody.innerHTML = pageRows.map(function(r){
       const st = (r.status||'').toLowerCase();
       const stOpts = ['ordered','backordered','building','shipped','warranty','returned'];
       const sel = '<select class="status-select b-'+esc(st)+'" data-id="'+esc(r.id)+'">' +
         stOpts.map(function(o){ return '<option value="'+o+'"'+(o===st?' selected':'')+'>'+o+'</option>'; }).join('') +
         '</select>';
+      const specsText = [['Case',r.pc_case],['CPU',r.cpu],['GPU',r.gpu],['RAM',r.ram],['Storage',r.storage]]
+        .filter(function(pr){ return pr[1]; })
+        .map(function(pr){ return '<b>'+pr[0]+':</b> '+esc(pr[1]); }).join('&nbsp;&nbsp;&middot;&nbsp;&nbsp;');
       return '<tr>' +
         '<td>'+fmtDate(r.generated_at || r.created_at)+'</td>' +
         '<td>'+esc(r.customer)+'</td>' +
         '<td>'+esc(r.order_no)+'</td>' +
         '<td>'+esc(r.serial)+'</td>' +
-        '<td>'+esc(r.pc_case)+'</td>' +
-        '<td>'+esc(r.cpu)+'</td>' +
-        '<td>'+esc(r.gpu)+'</td>' +
-        '<td>'+esc(r.ram)+'</td>' +
-        '<td>'+esc(r.storage)+'</td>' +
         '<td>'+sel+'</td>' +
+        '<td class="row-actions">' +
+          '<button type="button" class="mini specs-btn" data-id="'+esc(r.id)+'">Specs</button>' +
+          '<button type="button" class="mini del-btn" data-id="'+esc(r.id)+'" data-serial="'+esc(r.serial)+'" title="Delete">&times;</button>' +
+        '</td>' +
+      '</tr>' +
+      '<tr class="detail-row" id="detail-'+esc(r.id)+'" style="display:none;">' +
+        '<td colspan="6" class="detail-cell">'+(specsText || '<span>No specs recorded.</span>')+'</td>' +
       '</tr>';
     }).join('');
-    histNote.textContent = rows.length + ' row' + (rows.length===1?'':'s') +
-      (q && rows.length !== historyRows.length ? ' (filtered from ' + historyRows.length + ')' : '');
+    histPrev.disabled = histPage === 0;
+    histNext.disabled = histPage >= pages - 1;
+    histPageInfo.textContent = total === 0
+      ? 'No matching records'
+      : ('Showing ' + (startIdx + 1) + '\u2013' + Math.min(startIdx + PAGE_SIZE, total) + ' of ' + total);
+  }
+
+  async function deleteRow(id){
+    if (!SB || !session) return;
+    const { error } = await SB.from('pc_log').delete().eq('id', id);
+    if (error){ histNote.textContent = 'Delete failed: ' + (error.message || 'error'); return; }
+    historyRows = historyRows.filter(function(r){ return String(r.id) !== String(id); });
+    renderHistory();
+    histNote.textContent = 'Deleted.';
   }
 
   async function updateStatus(id, val, el){
@@ -1268,10 +1338,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
   function csvCell(v){ v = (v==null ? '' : String(v)); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
   function exportCsv(){
-    const q = (histSearch.value||'').trim().toLowerCase();
-    const rows = q ? historyRows.filter(function(r){
-      return (r.serial||'').toLowerCase().indexOf(q)>-1 || (r.customer||'').toLowerCase().indexOf(q)>-1 || (r.order_no||'').toLowerCase().indexOf(q)>-1;
-    }) : historyRows;
+    const rows = getFiltered();
     const head = ['Date Generated','Customer','Order #','Serial','Case','CPU','GPU','RAM','Storage','Status'];
     const lines = [head.join(',')];
     rows.forEach(function(r){
@@ -1301,11 +1368,27 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   signInBtn.addEventListener('click', signIn);
   authPass.addEventListener('keydown', function(e){ if (e.key === 'Enter') signIn(); });
   histRefresh.addEventListener('click', loadHistory);
-  histSearch.addEventListener('input', renderHistory);
+  histSearch.addEventListener('input', function(){ histPage = 0; renderHistory(); });
+  histFrom.addEventListener('change', function(){ histPage = 0; renderHistory(); });
+  histTo.addEventListener('change', function(){ histPage = 0; renderHistory(); });
+  histPrev.addEventListener('click', function(){ histPage--; renderHistory(); });
+  histNext.addEventListener('click', function(){ histPage++; renderHistory(); });
   histBody.addEventListener('change', function(e){
     const el = e.target;
     if (el && el.classList && el.classList.contains('status-select')){
       updateStatus(el.getAttribute('data-id'), el.value, el);
+    }
+  });
+  histBody.addEventListener('click', function(e){
+    const btn = e.target.closest('button');
+    if (!btn) return;
+    if (btn.classList.contains('specs-btn')){
+      const dr = document.getElementById('detail-' + btn.getAttribute('data-id'));
+      if (dr) dr.style.display = (dr.style.display === 'none' ? '' : 'none');
+    } else if (btn.classList.contains('del-btn')){
+      const id = btn.getAttribute('data-id');
+      const sn = btn.getAttribute('data-serial') || 'this serial';
+      if (window.confirm('Delete ' + sn + ' from the log? This cannot be undone.')) deleteRow(id);
     }
   });
   document.getElementById('histCsv').addEventListener('click', exportCsv);
@@ -1317,6 +1400,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
   // ---- NT serial generation ----
   // Highest NT{YY}###### number already present in the serials box (-1 if none).
+  function maxNTInRows(year){
+    const re = new RegExp('^NT' + year + '(\\d{6})$');
+    let max = -1;
+    (historyRows || []).forEach(function(r){
+      const m = re.exec(String(r.serial || '').trim());
+      if (m){ const n = parseInt(m[1], 10); if (n > max) max = n; }
+    });
+    return max;
+  }
+
   function maxNTInText(year, text){
     const re = new RegExp('^NT' + year + '(\\d{6})$');
     let max = -1;
@@ -1354,7 +1447,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
 
     const localMax = maxNTInText(year, serialsEl.value);
-    const start = Math.max(sheetMax, localMax) + 1;
+    const histMax = maxNTInRows(year);
+    const start = Math.max(sheetMax, localMax, histMax) + 1;
 
     if (start + count - 1 > 999999){
       errEl.textContent = `Not enough numbers left in the NT${year} range to generate ${count}.`;
