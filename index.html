@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Shipping Label Maker</title>
+<title>Novatech Label Maker</title>
 <!-- JsBarcode (inlined for offline use) -->
 <script>
 /*! JsBarcode v3.12.3 | (c) Johan Lindell | MIT license */
@@ -386,6 +386,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 //# sourceMappingURL=jspdf.umd.min.js.map
 
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
     --ink:#1a1d23;
@@ -545,6 +546,49 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     border-radius:4px; overflow:hidden;
   }
 
+  /* --- v6 additions --- */
+  .green{ background:#16a34a; color:#fff; box-shadow:0 1px 2px rgba(22,163,74,.35); }
+  .green:not(:disabled):hover{ background:#15803d; }
+  .spec-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .spec-grid .span2{ grid-column:1 / -1; }
+  @media(max-width:700px){ .spec-grid{ grid-template-columns:1fr; } }
+  .header-right{ display:flex; align-items:center; gap:10px; }
+  .auth-chip{ font-size:12px; color:var(--muted); background:var(--paper); border:1px solid var(--line); padding:5px 11px; border-radius:999px; }
+  .auth-chip a{ color:var(--accent); text-decoration:none; cursor:pointer; margin-left:6px; }
+  .auth-chip a:hover{ text-decoration:underline; }
+  .muted-line{ color:var(--muted); font-size:13px; margin:0 0 12px; }
+  .login-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .login-row input{ flex:1; min-width:180px; }
+  .auth-err{ color:var(--bad); font-size:13px; margin-top:8px; }
+  .hist-toolbar{ display:flex; gap:8px; margin-bottom:12px; flex-wrap:wrap; }
+  .hist-toolbar input{ flex:1; min-width:220px; }
+  .table-wrap{ overflow:auto; border:1px solid var(--line); border-radius:12px; max-height:440px; }
+  .hist-table{ width:100%; border-collapse:collapse; font-size:12.5px; white-space:nowrap; }
+  .hist-table th, .hist-table td{ text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); }
+  .hist-table th{ position:sticky; top:0; background:var(--soft); color:var(--muted); font-weight:600; }
+  .hist-table tbody tr:hover{ background:var(--soft); }
+  .badge{ display:inline-block; padding:2px 9px; border-radius:999px; font-size:11.5px; font-weight:600; }
+  .b-ordered{ background:#cfe2f3; color:#1a4971; }
+  .b-backordered{ background:#f4cccc; color:#7a2020; }
+  .b-building{ background:#fff2cc; color:#7a5c00; }
+  .b-shipped{ background:#d9ead3; color:#2c5e1a; }
+  .b-warranty{ background:#d9d2e9; color:#4b3b73; }
+  .b-returned{ background:#ead1dc; color:#7a2a52; }
+  .hist-note{ color:var(--muted); font-size:12px; margin-top:10px; }
+
+  /* --- v7: top nav + inline status --- */
+  .topnav{ background:var(--paper); border-bottom:1px solid var(--line); position:sticky; top:0; z-index:20; box-shadow:0 1px 2px rgba(16,24,40,.04); }
+  .nav-inner{ max-width:940px; margin:0 auto; padding:0 20px; height:58px; display:flex; align-items:center; gap:22px; }
+  .nav-brand{ display:flex; align-items:center; text-decoration:none; }
+  .nav-logo{ height:26px; width:auto; display:block; }
+  .nav-wordmark{ font-weight:800; font-size:20px; letter-spacing:.5px; background:linear-gradient(90deg,#ff2e97,#8a2be2,#2563eb,#22d3ee); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .nav-menu{ display:flex; gap:6px; }
+  .nav-item{ font-size:13px; font-weight:600; color:var(--muted); text-decoration:none; padding:7px 12px; border-radius:8px; }
+  .nav-item:hover{ background:var(--soft); color:var(--ink); }
+  .nav-item.active{ background:var(--accent-soft); color:var(--accent); }
+  .nav-right{ display:flex; align-items:center; gap:10px; margin-left:auto; }
+  .status-select{ border:1px solid transparent; border-radius:999px; padding:3px 10px; font-size:11.5px; font-weight:600; cursor:pointer; -webkit-appearance:none; appearance:none; }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -607,7 +651,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   @media print{
     @page{ size:4in 6in; margin:0; }
     html,body{background:#fff; margin:0; padding:0;}
-    .controls{ display:none !important; }
+    .controls, .topnav{ display:none !important; }
     #printArea{ display:block !important; }
     .label{
       page-break-after:always;
@@ -619,56 +663,66 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 </head>
 <body>
 
+<nav class="topnav">
+  <div class="nav-inner">
+    <a class="nav-brand" href="#">
+      <img class="nav-logo" src="logo.png" alt="Novatech" onerror="this.style.display='none';var t=document.getElementById('logoText');if(t)t.style.display='inline';">
+      <span class="nav-wordmark" id="logoText" style="display:none;">NOVATECH</span>
+    </a>
+    <div class="nav-menu">
+      <a class="nav-item active" href="#">B2B Label Maker</a>
+    </div>
+    <div class="nav-right">
+      <span class="auth-chip" id="authChip" style="display:none;"></span>
+      <span class="version" id="version">v7</span>
+    </div>
+  </div>
+</nav>
+
 <div class="controls">
   <header class="app-header">
     <div class="brand">
-      <div class="logo">NT</div>
       <div>
-        <h1>Label Maker</h1>
-        <p class="tagline">Box labels &middot; Dymo serial tags &middot; sheet logging</p>
+        <h1>B2B Label Maker</h1>
+        <p class="tagline">Box labels &middot; Dymo serial tags &middot; order log</p>
       </div>
     </div>
-    <span class="version" id="version">v5</span>
   </header>
 
   <section class="card">
-    <h2 class="card-title">Computer &amp; serials</h2>
-    <div class="grid">
-      <div class="field">
-        <label for="specs">Specs</label>
-        <div class="hint">One line per row (CPU / GPU / RAM / Storage). Same on every label.</div>
-        <textarea id="specs" spellcheck="false">CPU: Ryzen 5 5500
-GPU: RTX 5050
-RAM: 16GB DDR4
-Storage: 1TB Nvme SSD</textarea>
+    <h2 class="card-title">Specs</h2>
+    <div class="spec-grid">
+      <div class="field span2">
+        <label for="case">Case</label>
+        <input id="case" type="text" placeholder="e.g. Montech AIR 903">
       </div>
-      <div class="field">
-        <div class="field-head">
-          <label for="serials">Serial numbers</label>
-          <div class="gen-inline">
-            <input id="genCount" type="number" min="1" max="1000" value="30" title="How many to generate">
-            <button class="soft" id="genSerialsBtn" type="button">Generate NT serials</button>
-          </div>
-        </div>
+      <div class="field"><label for="cpu">CPU</label><input id="cpu" type="text" value="Ryzen 5 5500"></div>
+      <div class="field"><label for="gpu">GPU</label><input id="gpu" type="text" value="RTX 5050"></div>
+      <div class="field"><label for="ram">RAM</label><input id="ram" type="text" value="16GB DDR4"></div>
+      <div class="field"><label for="storage">Storage</label><input id="storage" type="text" value="1TB Nvme SSD"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 class="card-title">Serial numbers</h2>
+    <div class="field">
+      <div class="field-head">
         <div class="hint">One per line. Each becomes its own label + barcode.</div>
-        <textarea id="serials" spellcheck="false" placeholder="Paste serials, or generate them with the button above."></textarea>
+        <div class="gen-inline">
+          <input id="genCount" type="number" min="1" max="1000" value="30" title="How many to generate">
+          <button class="soft" id="genSerialsBtn" type="button">Generate NT serials</button>
+        </div>
       </div>
+      <textarea id="serials" spellcheck="false" placeholder="Paste serials, or generate them with the button above."></textarea>
     </div>
   </section>
 
   <section class="card">
     <h2 class="card-title">Order details</h2>
     <div class="meta-row">
-      <div class="field">
-        <label for="customer">Customer</label>
-        <input id="customer" type="text" placeholder="e.g. Rutgers University">
-      </div>
-      <div class="field">
-        <label for="order">Order # / PO</label>
-        <input id="order" type="text" placeholder="e.g. PO-10482">
-      </div>
-      <div class="field">
-        <label for="status">Status</label>
+      <div class="field"><label for="customer">Customer</label><input id="customer" type="text" placeholder="e.g. Rutgers University"></div>
+      <div class="field"><label for="order">Order # / PO</label><input id="order" type="text" placeholder="e.g. PO-10482"></div>
+      <div class="field"><label for="status">Status</label>
         <select id="status">
           <option value="ordered">ordered</option>
           <option value="backordered">backordered</option>
@@ -688,7 +742,7 @@ Storage: 1TB Nvme SSD</textarea>
       <button class="ghost" id="pdfBtn" disabled>4&times;6 box PDF</button>
       <button class="ghost" id="dymoBtn" disabled>Dymo 1&times;2&frac18; PDF</button>
       <button class="ghost" id="printBtn" disabled>Print</button>
-      <button class="primary" id="sheetBtn" disabled>Save to Google Sheet</button>
+      <button class="green" id="sheetBtn" disabled>Save order</button>
       <span class="count" id="count"></span>
     </div>
     <div class="msgs">
@@ -703,22 +757,46 @@ Storage: 1TB Nvme SSD</textarea>
     </div>
   </section>
 
-  <details class="card sheet-config" id="sheetConfig">
-    <summary>Google Sheet</summary>
-    <div class="sheet-row">
-      <input id="sheetUrl" type="url" spellcheck="false"
-             placeholder="Apps Script Web App URL (ends in /exec)">
-      <button class="ghost" id="saveUrlBtn">Save URL</button>
+  <section class="card" id="historyCard">
+    <h2 class="card-title">Order history</h2>
+    <div id="authGate">
+      <p class="muted-line">Sign in to save orders and view history.</p>
+      <div class="login-row">
+        <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
+        <input id="authPass" type="password" placeholder="Password" autocomplete="current-password">
+        <button class="primary" id="signInBtn">Sign in</button>
+      </div>
+      <div class="auth-err" id="authErr"></div>
     </div>
-    <p class="sheet-hint">Saved in this browser only. Used both to log saves and to read the sheet's latest NT serial when generating. Each save adds one row per serial: date generated, customer, order #, serial number, CPU, GPU, RAM, storage, and status. Serials already in the sheet are skipped automatically.</p>
-  </details>
+    <div id="historyBody" style="display:none;">
+      <div class="hist-toolbar">
+        <input id="histSearch" type="text" placeholder="Filter by serial, customer, or order #">
+        <button class="ghost" id="histRefresh">Refresh</button>
+        <button class="ghost" id="histCsv">Export CSV</button>
+      </div>
+      <div class="table-wrap">
+        <table class="hist-table">
+          <thead><tr>
+            <th>Date</th><th>Customer</th><th>Order #</th><th>Serial</th>
+            <th>Case</th><th>CPU</th><th>GPU</th><th>RAM</th><th>Storage</th><th>Status</th>
+          </tr></thead>
+          <tbody id="histBody"></tbody>
+        </table>
+      </div>
+      <div class="hist-note" id="histNote"></div>
+    </div>
+  </section>
 </div>
 
 <div id="printArea"></div>
 
 <script>
 (function(){
-  const specsEl   = document.getElementById('specs');
+  const caseEl    = document.getElementById('case');
+  const cpuEl     = document.getElementById('cpu');
+  const gpuEl     = document.getElementById('gpu');
+  const ramEl     = document.getElementById('ram');
+  const storageEl = document.getElementById('storage');
   const serialsEl = document.getElementById('serials');
   const genBtn    = document.getElementById('generateBtn');
   const printBtn  = document.getElementById('printBtn');
@@ -726,8 +804,17 @@ Storage: 1TB Nvme SSD</textarea>
   const dymoBtn   = document.getElementById('dymoBtn');
   const sheetBtn  = document.getElementById('sheetBtn');
   const sheetStatus = document.getElementById('sheetStatus');
-  const sheetUrlEl  = document.getElementById('sheetUrl');
-  const saveUrlBtn  = document.getElementById('saveUrlBtn');
+  const authChip    = document.getElementById('authChip');
+  const authGate    = document.getElementById('authGate');
+  const historyBody = document.getElementById('historyBody');
+  const authEmail   = document.getElementById('authEmail');
+  const authPass    = document.getElementById('authPass');
+  const signInBtn   = document.getElementById('signInBtn');
+  const authErr     = document.getElementById('authErr');
+  const histSearch  = document.getElementById('histSearch');
+  const histRefresh = document.getElementById('histRefresh');
+  const histBody    = document.getElementById('histBody');
+  const histNote    = document.getElementById('histNote');
   const customerEl  = document.getElementById('customer');
   const orderEl     = document.getElementById('order');
   const statusEl    = document.getElementById('status');
@@ -743,31 +830,30 @@ Storage: 1TB Nvme SSD</textarea>
   let lastSpecLines = [];
   let lastSerials = [];
   let lastGeneratedAt = '';
+  let lastSpecObj = { case:'', cpu:'', gpu:'', ram:'', storage:'' };
+  let savedBatch = false;
+  let session = null;
 
+  function getSpecObj(){
+    return {
+      case: caseEl.value.trim(),
+      cpu: cpuEl.value.trim(),
+      gpu: gpuEl.value.trim(),
+      ram: ramEl.value.trim(),
+      storage: storageEl.value.trim()
+    };
+  }
   function getSpecLines(){
-    return specsEl.value.split('\n').map(s => s.replace(/\s+$/,'')).filter(s => s.trim() !== '');
+    const o = getSpecObj();
+    return [['Case',o.case],['CPU',o.cpu],['GPU',o.gpu],['RAM',o.ram],['Storage',o.storage]]
+      .filter(function(pr){ return pr[1] !== ''; })
+      .map(function(pr){ return pr[0] + ': ' + pr[1]; });
   }
   function getSerials(){
     return serialsEl.value.split('\n').map(s => s.trim()).filter(s => s !== '');
   }
 
-  // Split "CPU: x / GPU: y / RAM: z / Storage: w" spec lines into named fields.
-  function parseSpecs(lines){
-    const out = { cpu:'', gpu:'', ram:'', storage:'' };
-    lines.forEach(line => {
-      const idx = line.indexOf(':');
-      if (idx === -1) return;
-      const key = line.slice(0, idx).trim().toLowerCase();
-      const val = line.slice(idx + 1).trim();
-      if (key === 'cpu' || key === 'processor') out.cpu = val;
-      else if (key === 'gpu' || key === 'graphics') out.gpu = val;
-      else if (key === 'ram' || key === 'memory') out.ram = val;
-      else if (key === 'storage' || key === 'ssd' || key === 'disk' || key === 'drive') out.storage = val;
-    });
-    return out;
-  }
-
-  // Render Code 128-B bars to an off-screen canvas at high resolution.
+    // Render Code 128-B bars to an off-screen canvas at high resolution.
   // Hard-edged, high-DPI raster survives a PDF reader's low-DPI rasterization.
   function makeBarcodeCanvas(serial, barHeight){
     const canvas = document.createElement('canvas');
@@ -881,16 +967,18 @@ Storage: 1TB Nvme SSD</textarea>
                         (serials.length>12 ? ` · showing first 12` : '');
     previewWrap.style.display = 'block';
     lastSpecLines = specLines;
+    lastSpecObj = getSpecObj();
     lastSerials = serials;
     lastGeneratedAt = new Date().toISOString();
     printBtn.disabled = false;
     pdfBtn.disabled = false;
     dymoBtn.disabled = false;
-    sheetBtn.disabled = false;
-    sheetBtn.textContent = 'Save to Google Sheet';
+    savedBatch = false;
+    sheetBtn.textContent = 'Save order';
     sheetBtn.classList.remove('saved');
     sheetStatus.className = 'sheet-status';
     sheetStatus.textContent = '';
+    updateSaveEnabled();
   }
 
   // Build a true 4x6 PDF in-page (no reliance on the browser print dialog or paper size).
@@ -997,109 +1085,224 @@ Storage: 1TB Nvme SSD</textarea>
     sheetBtn.disabled = true;
   }
 
-  // ---- Google Sheet logging ----
-  const SHEET_URL_KEY = 'labelmaker_sheet_url';
-  function getSheetUrl(){ try { return localStorage.getItem(SHEET_URL_KEY) || ''; } catch(e){ return ''; } }
-  function setSheetUrl(u){ try { localStorage.setItem(SHEET_URL_KEY, u); } catch(e){} }
+  // ---- Supabase (database) ----
+  const SUPABASE_URL = 'https://vajrnbniwkvnkkkigeit.supabase.co';
+  const SUPABASE_KEY = 'sb_publishable_mF1sD8UO4CHuyCgPTLZsXQ_CilDLz3y';
+  const SB = (window.supabase && window.supabase.createClient)
+    ? window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY, { auth: { persistSession: true, autoRefreshToken: true } })
+    : null;
 
-  // Restore a previously saved URL
-  sheetUrlEl.value = getSheetUrl();
-  if (!getSheetUrl()) { document.getElementById('sheetConfig').open = true; }
-
-  saveUrlBtn.addEventListener('click', () => {
-    const u = sheetUrlEl.value.trim();
-    setSheetUrl(u);
-    sheetStatus.className = 'sheet-status ok';
-    sheetStatus.textContent = u ? 'Sheet URL saved in this browser.' : 'Sheet URL cleared.';
-  });
-
-  async function saveToSheet(){
-    const url = getSheetUrl();
-    if (!url){
-      document.getElementById('sheetConfig').open = true;
-      sheetStatus.className = 'sheet-status bad';
-      sheetStatus.textContent = 'Paste your Web App URL below, click Save URL, then try again.';
+  // ---- Auth ----
+  async function initAuth(){
+    if (!SB){
+      authGate.innerHTML = '<p class="muted-line">Couldn\u2019t load the database library (check your connection). Label generation still works.</p>';
       return;
     }
-    if (!lastSerials.length){
-      sheetStatus.className = 'sheet-status bad';
-      sheetStatus.textContent = 'Generate labels first.';
-      return;
+    const { data } = await SB.auth.getSession();
+    session = data.session;
+    SB.auth.onAuthStateChange(function(_ev, s){
+      session = s;
+      renderAuth();
+      updateSaveEnabled();
+      if (s) loadHistory();
+    });
+    renderAuth();
+    updateSaveEnabled();
+    if (session) loadHistory();
+  }
+
+  function renderAuth(){
+    if (session && session.user){
+      authChip.style.display = '';
+      authChip.innerHTML = session.user.email + ' <a id="signOutLink">Sign out</a>';
+      const link = document.getElementById('signOutLink');
+      if (link) link.addEventListener('click', function(){ SB.auth.signOut(); });
+      authGate.style.display = 'none';
+      historyBody.style.display = '';
+    } else {
+      authChip.style.display = 'none';
+      authGate.style.display = '';
+      historyBody.style.display = 'none';
     }
+  }
+
+  async function signIn(){
+    authErr.textContent = '';
+    const email = authEmail.value.trim();
+    const pass = authPass.value;
+    if (!email || !pass){ authErr.textContent = 'Enter your email and password.'; return; }
+    if (!SB){ authErr.textContent = 'Database library not loaded.'; return; }
+    signInBtn.disabled = true;
+    const prev = signInBtn.textContent; signInBtn.textContent = 'Signing in\u2026';
+    const { error } = await SB.auth.signInWithPassword({ email: email, password: pass });
+    signInBtn.disabled = false; signInBtn.textContent = prev;
+    if (error){ authErr.textContent = error.message || 'Sign-in failed.'; }
+    else { authPass.value = ''; }
+  }
+
+  // ---- Save gating ----
+  function requiredFilled(){
+    const s = lastSpecObj || {};
+    const specsOk = ['case','cpu','gpu','ram','storage'].every(function(k){ return (s[k]||'') !== ''; });
+    return lastSerials.length > 0 && specsOk &&
+           customerEl.value.trim() !== '' && orderEl.value.trim() !== '' && statusEl.value !== '';
+  }
+  function updateSaveEnabled(){
+    sheetBtn.disabled = savedBatch || !session || !requiredFilled();
+  }
+
+  // ---- Save order ----
+  async function saveOrder(){
+    if (!SB || !session){ sheetStatus.className='sheet-status bad'; sheetStatus.textContent='Sign in first (Order history card).'; return; }
+    if (!requiredFilled()){ sheetStatus.className='sheet-status bad'; sheetStatus.textContent='Fill every field and generate labels before saving.'; return; }
+
     sheetBtn.disabled = true;
     sheetStatus.className = 'sheet-status';
-    sheetStatus.textContent = 'Saving…';
+    sheetStatus.textContent = 'Saving\u2026';
 
-    const payload = {
-      customer: customerEl.value.trim(),
-      order: orderEl.value.trim(),
-      status: statusEl.value,
-      generatedAt: lastGeneratedAt || new Date().toISOString(),
-      specs: parseSpecs(lastSpecLines),
-      serials: lastSerials
-    };
-    try {
-      // Simple request (text/plain) so it isn't blocked by a CORS preflight.
-      // The write always reaches the script; we also try to read its JSON summary.
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
-      let data = null;
-      try { data = await res.json(); } catch (e) { /* response not readable; write still happened */ }
+    const rows = lastSerials.map(function(sn){
+      return {
+        generated_at: lastGeneratedAt || new Date().toISOString(),
+        customer: customerEl.value.trim(),
+        order_no: orderEl.value.trim(),
+        serial: sn,
+        pc_case: lastSpecObj.case,
+        cpu: lastSpecObj.cpu,
+        gpu: lastSpecObj.gpu,
+        ram: lastSpecObj.ram,
+        storage: lastSpecObj.storage,
+        status: statusEl.value
+      };
+    });
 
-      if (data && data.ok){
-        const parts = [`Added ${data.added} row${data.added===1?'':'s'}`];
-        if (data.skipped) parts.push(`skipped ${data.skipped} already logged`);
-        sheetBtn.textContent = 'Saved ✓';
-        sheetBtn.classList.add('saved');
-        sheetStatus.className = 'sheet-status ok';
-        sheetStatus.textContent = parts.join(', ') + '.';
-      } else if (data && data.error){
-        sheetBtn.disabled = false;
-        sheetStatus.className = 'sheet-status bad';
-        sheetStatus.textContent = 'The sheet reported an error: ' + data.error;
-      } else {
-        // Couldn't read the response, but the rows were sent (duplicates are skipped server-side).
-        sheetBtn.textContent = 'Saved ✓';
-        sheetBtn.classList.add('saved');
-        sheetStatus.className = 'sheet-status ok';
-        sheetStatus.textContent = 'Sent to the sheet (duplicates skipped automatically). Check Google Sheets to confirm.';
-      }
-    } catch(err){
-      // Server de-dupes, so retrying is safe.
+    const { data, error } = await SB
+      .from('pc_log')
+      .upsert(rows, { onConflict: 'serial', ignoreDuplicates: true })
+      .select();
+
+    if (error){
       sheetBtn.disabled = false;
       sheetStatus.className = 'sheet-status bad';
-      sheetStatus.textContent = 'Could not reach the sheet — check your internet and that the URL is correct, then try again.';
+      sheetStatus.textContent = 'Save failed: ' + (error.message || 'unknown error');
+      return;
     }
+    const added = data ? data.length : 0;
+    const skipped = rows.length - added;
+    savedBatch = true;
+    sheetBtn.textContent = 'Saved \u2713';
+    sheetBtn.classList.add('saved');
+    sheetStatus.className = 'sheet-status ok';
+    sheetStatus.textContent = 'Saved ' + added + ' row' + (added===1?'':'s') +
+      (skipped ? (', skipped ' + skipped + ' already logged') : '') + '.';
+    loadHistory();
+  }
+
+  // ---- History ----
+  let historyRows = [];
+  async function loadHistory(){
+    if (!SB || !session) return;
+    histNote.textContent = 'Loading\u2026';
+    const { data, error } = await SB
+      .from('pc_log')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(500);
+    if (error){ histNote.textContent = 'Could not load history: ' + (error.message || 'error'); return; }
+    historyRows = data || [];
+    renderHistory();
+  }
+  function esc(v){ return (v==null?'':String(v)).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+  function fmtDate(v){ if(!v) return ''; const d=new Date(v); return isNaN(d.getTime())?'':d.toLocaleDateString(); }
+  function renderHistory(){
+    const q = (histSearch.value || '').trim().toLowerCase();
+    const rows = q ? historyRows.filter(function(r){
+      return (r.serial||'').toLowerCase().indexOf(q) > -1 ||
+             (r.customer||'').toLowerCase().indexOf(q) > -1 ||
+             (r.order_no||'').toLowerCase().indexOf(q) > -1;
+    }) : historyRows;
+    histBody.innerHTML = rows.map(function(r){
+      const st = (r.status||'').toLowerCase();
+      const stOpts = ['ordered','backordered','building','shipped','warranty','returned'];
+      const sel = '<select class="status-select b-'+esc(st)+'" data-id="'+esc(r.id)+'">' +
+        stOpts.map(function(o){ return '<option value="'+o+'"'+(o===st?' selected':'')+'>'+o+'</option>'; }).join('') +
+        '</select>';
+      return '<tr>' +
+        '<td>'+fmtDate(r.generated_at || r.created_at)+'</td>' +
+        '<td>'+esc(r.customer)+'</td>' +
+        '<td>'+esc(r.order_no)+'</td>' +
+        '<td>'+esc(r.serial)+'</td>' +
+        '<td>'+esc(r.pc_case)+'</td>' +
+        '<td>'+esc(r.cpu)+'</td>' +
+        '<td>'+esc(r.gpu)+'</td>' +
+        '<td>'+esc(r.ram)+'</td>' +
+        '<td>'+esc(r.storage)+'</td>' +
+        '<td>'+sel+'</td>' +
+      '</tr>';
+    }).join('');
+    histNote.textContent = rows.length + ' row' + (rows.length===1?'':'s') +
+      (q && rows.length !== historyRows.length ? ' (filtered from ' + historyRows.length + ')' : '');
+  }
+
+  async function updateStatus(id, val, el){
+    if (!SB || !session) return;
+    const { error } = await SB.from('pc_log').update({ status: val }).eq('id', id);
+    if (error){ histNote.textContent = 'Status update failed: ' + (error.message||'error'); return; }
+    el.className = 'status-select b-' + val;
+    const row = historyRows.find(function(r){ return String(r.id) === String(id); });
+    if (row) row.status = val;
+    histNote.textContent = 'Status updated.';
+  }
+
+  function csvCell(v){ v = (v==null ? '' : String(v)); return /[",\n]/.test(v) ? '"'+v.replace(/"/g,'""')+'"' : v; }
+  function exportCsv(){
+    const q = (histSearch.value||'').trim().toLowerCase();
+    const rows = q ? historyRows.filter(function(r){
+      return (r.serial||'').toLowerCase().indexOf(q)>-1 || (r.customer||'').toLowerCase().indexOf(q)>-1 || (r.order_no||'').toLowerCase().indexOf(q)>-1;
+    }) : historyRows;
+    const head = ['Date Generated','Customer','Order #','Serial','Case','CPU','GPU','RAM','Storage','Status'];
+    const lines = [head.join(',')];
+    rows.forEach(function(r){
+      lines.push([ r.generated_at||r.created_at||'', r.customer, r.order_no, r.serial, r.pc_case, r.cpu, r.gpu, r.ram, r.storage, r.status ].map(csvCell).join(','));
+    });
+    const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'novatech-order-log.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  async function sbMaxSerial(year){
+    if (!SB || !session) return -1;
+    const { data, error } = await SB.rpc('max_serial', { yr: year });
+    if (error) throw new Error(error.message || 'rpc error');
+    return (typeof data === 'number') ? data : -1;
   }
 
   genBtn.addEventListener('click', generate);
   printBtn.addEventListener('click', () => window.print());
   pdfBtn.addEventListener('click', generatePdf);
   dymoBtn.addEventListener('click', generatePdfDymo);
-  sheetBtn.addEventListener('click', saveToSheet);
+  sheetBtn.addEventListener('click', saveOrder);
   genSerialsBtn.addEventListener('click', generateSerials);
+  signInBtn.addEventListener('click', signIn);
+  authPass.addEventListener('keydown', function(e){ if (e.key === 'Enter') signIn(); });
+  histRefresh.addEventListener('click', loadHistory);
+  histSearch.addEventListener('input', renderHistory);
+  histBody.addEventListener('change', function(e){
+    const el = e.target;
+    if (el && el.classList && el.classList.contains('status-select')){
+      updateStatus(el.getAttribute('data-id'), el.value, el);
+    }
+  });
+  document.getElementById('histCsv').addEventListener('click', exportCsv);
+  [customerEl, orderEl, statusEl, caseEl, cpuEl, gpuEl, ramEl, storageEl].forEach(function(el){
+    el.addEventListener('input', updateSaveEnabled);
+    el.addEventListener('change', updateSaveEnabled);
+  });
+  initAuth();
 
   // ---- NT serial generation ----
-  // JSONP is the reliable way to READ back from an Apps Script web app cross-origin.
-  function jsonp(baseUrl, params){
-    return new Promise((resolve, reject) => {
-      const cb = 'lm_cb_' + Math.random().toString(36).slice(2);
-      const q = new URLSearchParams(params);
-      q.set('callback', cb);
-      const script = document.createElement('script');
-      let done = false;
-      const timer = setTimeout(() => { if(!done){ finish(); reject(new Error('timeout')); } }, 15000);
-      function finish(){ done = true; clearTimeout(timer); try{ delete window[cb]; }catch(e){ window[cb] = undefined; } script.remove(); }
-      window[cb] = (data) => { finish(); resolve(data); };
-      script.onerror = () => { if(!done){ finish(); reject(new Error('network')); } };
-      script.src = baseUrl + (baseUrl.includes('?') ? '&' : '?') + q.toString();
-      document.head.appendChild(script);
-    });
-  }
-
   // Highest NT{YY}###### number already present in the serials box (-1 if none).
   function maxNTInText(year, text){
     const re = new RegExp('^NT' + year + '(\\d{6})$');
@@ -1120,24 +1323,21 @@ Storage: 1TB Nvme SSD</textarea>
     if (count > 1000){ count = 1000; genCountEl.value = 1000; }
 
     const year = String(new Date().getFullYear() % 100).padStart(2, '0');
-    const url = getSheetUrl();
 
     genSerialsBtn.disabled = true;
     const label = genSerialsBtn.textContent;
     genSerialsBtn.textContent = 'Checking…';
 
-    // Highest already-used number = max(sheet, what's already in the box)
+    // Highest already-used number = max(database, what's already in the box)
     let sheetMax = -1;
-    if (url){
+    if (session){
       try {
-        const data = await jsonp(url, { action: 'maxserial', year: year });
-        if (data && data.ok && typeof data.max === 'number') sheetMax = data.max;
-        else if (data && data.error) throw new Error(data.error);
+        sheetMax = await sbMaxSerial(year);
       } catch(e){
-        warnEl.textContent = '⚠ Couldn’t read the sheet’s latest serial, so numbering only continues from what’s already in the box. Double-check for gaps or duplicates before saving.';
+        warnEl.textContent = '⚠ Couldn’t read the latest serial from the database, so numbering only continues from what’s already in the box. Double-check for gaps before saving.';
       }
     } else {
-      warnEl.textContent = '⚠ No Google Sheet URL set — numbering can’t be checked against history. Add it under “Google Sheet”.';
+      warnEl.textContent = '⚠ Sign in (Order history card) to continue numbering from the database. For now, numbering continues from the box only.';
     }
 
     const localMax = maxNTInText(year, serialsEl.value);
