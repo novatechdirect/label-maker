@@ -698,7 +698,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v11</span>
+      <span class="version" id="version">v12</span>
     </div>
   </div>
 </nav>
@@ -1230,6 +1230,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     const added = data ? data.length : 0;
     const skipped = rows.length - added;
     savedBatch = true;
+    serialsEl.value = '';
     sheetBtn.textContent = 'Saved \u2713';
     sheetBtn.classList.add('saved');
     sheetStatus.className = 'sheet-status ok';
