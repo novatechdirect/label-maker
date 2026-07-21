@@ -626,6 +626,35 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .sel-sm{ height:30px; padding:0 8px; font-size:12.5px; border:1px solid var(--line-strong); border-radius:8px; background:var(--paper); color:var(--ink); cursor:pointer; }
   .sel-sm:disabled{ opacity:0.5; cursor:default; }
 
+  /* --- v16: inventory --- */
+  .inv-topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .inv-topbar input[type=text]{ flex:1; min-width:180px; border:1px solid var(--line-strong); border-radius:10px; padding:9px 12px; font-size:13.5px; background:var(--paper); color:var(--ink); }
+  .inv-topbar-right{ display:flex; gap:8px; }
+  .inv-cat{ margin:18px 0 6px; font-size:11.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
+  .inv-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; margin-bottom:6px; background:var(--paper); flex-wrap:wrap; }
+  .inv-row.low{ border-color:#f0c9c4; background:#fff7f6; }
+  .inv-name{ flex:1; min-width:140px; font-size:14px; font-weight:600; cursor:pointer; }
+  .inv-name .thr{ color:var(--muted); font-weight:400; font-size:11.5px; margin-left:6px; }
+  .inv-qty{ font-size:17px; font-weight:700; min-width:44px; text-align:right; font-variant-numeric:tabular-nums; }
+  .inv-qty.zero{ color:#b42318; }
+  .inv-btns{ display:flex; gap:6px; }
+  .qbtn{ width:30px; height:30px; border-radius:8px; border:1px solid var(--line-strong); background:var(--paper); font-size:16px; font-weight:700; cursor:pointer; color:var(--ink); line-height:1; }
+  .qbtn:hover{ background:var(--soft); }
+  .adjust-bar{ width:100%; display:flex; gap:8px; align-items:center; padding-top:8px; flex-wrap:wrap; }
+  .adjust-bar input[type=number]{ width:80px; border:1px solid var(--line-strong); border-radius:8px; padding:6px 8px; font-size:13.5px; }
+  .adjust-bar select{ height:32px; border:1px solid var(--line-strong); border-radius:8px; padding:0 8px; font-size:12.5px; background:var(--paper); }
+  .adjust-bar .lbl{ font-size:12.5px; color:var(--muted); font-weight:600; }
+  .adjust-bar input[type=text]{ flex:1; min-width:120px; border:1px solid var(--line-strong); border-radius:8px; padding:6px 8px; font-size:12.5px; }
+  .status-pills{ display:flex; gap:4px; }
+  .pill{ font-size:11.5px; font-weight:700; padding:4px 10px; border-radius:999px; border:1px solid var(--line-strong); background:var(--paper); cursor:pointer; color:var(--muted); }
+  .pill.on-good{ background:#e6f4ea; border-color:#b6dfc0; color:#1e7b34; }
+  .pill.on-low{ background:#fff3e0; border-color:#f5cf9b; color:#a05e03; }
+  .pill.on-out{ background:#fdecea; border-color:#f0c9c4; color:#b42318; }
+  .low-list{ display:flex; flex-wrap:wrap; gap:8px; }
+  .low-chip{ font-size:12.5px; font-weight:600; padding:5px 12px; border-radius:999px; background:#fdecea; border:1px solid #f0c9c4; color:#b42318; }
+  .inv-menu-row{ width:100%; display:flex; gap:8px; padding-top:8px; flex-wrap:wrap; }
+  .muted-sm{ font-size:12px; color:var(--muted); }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -707,11 +736,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <span class="nav-wordmark" id="logoText" style="display:none;">NOVATECH</span>
     </a>
     <div class="nav-menu">
-      <a class="nav-item active" href="#">B2B Label Maker</a>
+      <a class="nav-item active" href="#" id="navLabels">B2B Label Maker</a>
+      <a class="nav-item" href="#" id="navInventory">Inventory</a>
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v15</span>
+      <span class="version" id="version">v16</span>
     </div>
   </div>
 </nav>
@@ -730,6 +760,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   </div>
 
   <div id="appView" style="display:none;">
+  <div id="toolLabels">
   <header class="app-header">
     <div class="brand">
       <div>
@@ -850,6 +881,57 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <div class="hist-note" id="histNote"></div>
     </div>
   </section>
+  </div><!-- /toolLabels -->
+
+  <div id="toolInventory" style="display:none;">
+    <header class="app-header">
+      <div class="brand">
+        <div>
+          <h1>Inventory</h1>
+          <p class="tagline">Parts on hand &middot; low stock &middot; activity log</p>
+        </div>
+      </div>
+    </header>
+
+    <section class="card" id="lowCard" style="display:none;">
+      <h2 class="card-title">Need to order</h2>
+      <div id="lowList" class="low-list"></div>
+    </section>
+
+    <section class="card">
+      <div class="inv-topbar">
+        <input id="invSearch" type="text" placeholder="Search parts">
+        <div class="inv-topbar-right">
+          <button class="ghost btn-sm" id="invHistoryBtn">Activity</button>
+          <button class="ghost btn-sm" id="invAddBtn">+ Add item</button>
+          <button class="ghost btn-sm" id="invRefresh">Refresh</button>
+        </div>
+      </div>
+      <div id="invBody"><p class="muted-line">Loading&hellip;</p></div>
+    </section>
+
+    <section class="card" id="invHistCard" style="display:none;">
+      <h2 class="card-title">Activity</h2>
+      <div class="inv-topbar">
+        <input id="invHistSearch" type="text" placeholder="Filter by part name">
+        <div class="inv-topbar-right">
+          <button class="ghost btn-sm" id="invHistClose">Close</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table class="hist-table">
+          <thead><tr><th>When</th><th>Part</th><th>Change</th><th>Reason</th><th>Note</th><th>By</th></tr></thead>
+          <tbody id="invHistBody"></tbody>
+        </table>
+      </div>
+      <div class="hist-pager">
+        <button class="ghost btn-sm" id="invHistPrev">Prev</button>
+        <span id="invHistInfo"></span>
+        <button class="ghost btn-sm" id="invHistNext">Next</button>
+      </div>
+    </section>
+  </div><!-- /toolInventory -->
+
   </div>
 </div>
 
@@ -1295,6 +1377,289 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     renderHistory();
   }
   function esc(v){ return (v==null?'':String(v)).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
+
+  /* ================= VIEW SWITCHING ================= */
+  const navLabels = document.getElementById('navLabels');
+  const navInventory = document.getElementById('navInventory');
+  const toolLabels = document.getElementById('toolLabels');
+  const toolInventory = document.getElementById('toolInventory');
+  let invLoaded = false;
+  function showTool(which){
+    const inv = which === 'inventory';
+    toolLabels.style.display = inv ? 'none' : '';
+    toolInventory.style.display = inv ? '' : 'none';
+    navLabels.classList.toggle('active', !inv);
+    navInventory.classList.toggle('active', inv);
+    if (inv && !invLoaded && SB && session){ invLoaded = true; loadInventory(); }
+  }
+  navLabels.addEventListener('click', function(e){ e.preventDefault(); showTool('labels'); });
+  navInventory.addEventListener('click', function(e){ e.preventDefault(); showTool('inventory'); });
+
+  /* ================= INVENTORY ================= */
+  const CATS = [
+    ['cases','Cases'], ['motherboards','Motherboards'], ['cpus','CPUs'], ['gpus','GPUs'],
+    ['ram','RAM'], ['storage','Storage'], ['wifi','WiFi'], ['supplies','Supplies'], ['other','Other']
+  ];
+  const REASONS_PLUS  = [['received','Received'],['correction','Correction'],['count','Count']];
+  const REASONS_MINUS = [['build','Used for builds'],['correction','Correction'],['count','Count']];
+  let invItems = [];
+  let invOpenAdjust = null; // {id, sign} or {id, mode:'menu'|'count'|'edit'}
+
+  const invBody = document.getElementById('invBody');
+  const invSearch = document.getElementById('invSearch');
+  const lowCard = document.getElementById('lowCard');
+  const lowList = document.getElementById('lowList');
+
+  async function loadInventory(){
+    if (!SB || !session) return;
+    invBody.innerHTML = '<p class="muted-line">Loading&hellip;</p>';
+    const { data, error } = await SB.from('inv_items').select('*').eq('archived', false)
+      .order('category').order('sort_order').order('name');
+    if (error){ invBody.innerHTML = '<p class="muted-line">Could not load inventory: ' + esc(error.message||'error') + '. Make sure the inventory tables are set up.</p>'; return; }
+    invItems = data || [];
+    renderInventory();
+  }
+
+  function isLow(it){
+    if (it.track_qty) return (it.qty|0) <= (it.low_at|0);
+    return it.status === 'low' || it.status === 'out';
+  }
+
+  function renderInventory(){
+    const q = (invSearch.value||'').trim().toLowerCase();
+    const items = q ? invItems.filter(function(it){ return (it.name||'').toLowerCase().indexOf(q) > -1; }) : invItems;
+
+    // low banner (always from full set)
+    const lows = invItems.filter(isLow);
+    lowCard.style.display = lows.length ? '' : 'none';
+    lowList.innerHTML = lows.map(function(it){
+      const tail = it.track_qty ? (' \u2014 ' + (it.qty|0) + ' left') : (' \u2014 ' + esc(it.status));
+      return '<span class="low-chip">' + esc(it.name) + tail + '</span>';
+    }).join('');
+
+    if (!items.length){
+      invBody.innerHTML = '<p class="muted-line">' + (q ? 'No parts match.' : 'No parts yet. Use \u201c+ Add item\u201d to create your first part, or run the seed SQL.') + '</p>';
+      return;
+    }
+    let htmlOut = '';
+    CATS.forEach(function(c){
+      const catItems = items.filter(function(it){ return it.category === c[0]; });
+      if (!catItems.length) return;
+      htmlOut += '<div class="inv-cat">' + c[1] + '</div>';
+      catItems.forEach(function(it){ htmlOut += rowHtml(it); });
+    });
+    invBody.innerHTML = htmlOut;
+  }
+
+  function rowHtml(it){
+    const low = isLow(it);
+    let inner;
+    if (it.track_qty){
+      inner =
+        '<span class="inv-name" data-menu="' + it.id + '">' + esc(it.name) +
+          '<span class="thr">low at ' + (it.low_at|0) + '</span></span>' +
+        '<span class="inv-qty' + ((it.qty|0)===0 ? ' zero' : '') + '">' + (it.qty|0) + '</span>' +
+        '<span class="inv-btns">' +
+          '<button type="button" class="qbtn" data-adj="-" data-id="' + it.id + '">\u2212</button>' +
+          '<button type="button" class="qbtn" data-adj="+" data-id="' + it.id + '">+</button>' +
+        '</span>';
+    } else {
+      inner =
+        '<span class="inv-name" data-menu="' + it.id + '">' + esc(it.name) + '</span>' +
+        '<span class="status-pills">' +
+          ['good','low','out'].map(function(s){
+            return '<button type="button" class="pill' + (it.status===s ? ' on-'+s : '') + '" data-st="' + s + '" data-id="' + it.id + '">' + s.charAt(0).toUpperCase()+s.slice(1) + '</button>';
+          }).join('') +
+        '</span>';
+    }
+    let extra = '';
+    const oa = invOpenAdjust;
+    if (oa && String(oa.id) === String(it.id)){
+      if (oa.sign){
+        const reasons = oa.sign === '+' ? REASONS_PLUS : REASONS_MINUS;
+        extra = '<span class="adjust-bar">' +
+          '<span class="lbl">' + (oa.sign === '+' ? 'Add' : 'Remove') + '</span>' +
+          '<input type="number" min="1" step="1" value="1" id="adjAmt">' +
+          '<select id="adjReason">' + reasons.map(function(r){ return '<option value="'+r[0]+'">'+r[1]+'</option>'; }).join('') + '</select>' +
+          '<input type="text" id="adjNote" placeholder="Note (optional)">' +
+          '<button type="button" class="primary btn-sm" data-apply="' + it.id + '">Apply</button>' +
+          '<button type="button" class="ghost btn-sm" data-cancel="1">Cancel</button>' +
+        '</span>';
+      } else if (oa.mode === 'menu'){
+        extra = '<span class="inv-menu-row">' +
+          '<button type="button" class="ghost btn-sm" data-count="' + it.id + '">Set count</button>' +
+          '<button type="button" class="ghost btn-sm" data-edit="' + it.id + '">Edit</button>' +
+          '<button type="button" class="ghost btn-sm danger" data-archive="' + it.id + '">Archive</button>' +
+          '<button type="button" class="ghost btn-sm" data-cancel="1">Close</button>' +
+        '</span>';
+      } else if (oa.mode === 'count'){
+        extra = '<span class="adjust-bar">' +
+          '<span class="lbl">Counted</span>' +
+          '<input type="number" min="0" step="1" value="' + (it.qty|0) + '" id="adjAmt">' +
+          '<input type="text" id="adjNote" placeholder="Note (optional)">' +
+          '<button type="button" class="primary btn-sm" data-applycount="' + it.id + '">Save count</button>' +
+          '<button type="button" class="ghost btn-sm" data-cancel="1">Cancel</button>' +
+        '</span>';
+      } else if (oa.mode === 'edit'){
+        extra = '<span class="adjust-bar">' +
+          '<span class="lbl">Name</span><input type="text" id="editName" value="' + esc(it.name) + '" style="flex:1;min-width:140px;">' +
+          (it.track_qty ? '<span class="lbl">Low at</span><input type="number" min="0" step="1" id="editLow" value="' + (it.low_at|0) + '">' : '') +
+          '<button type="button" class="primary btn-sm" data-applyedit="' + it.id + '">Save</button>' +
+          '<button type="button" class="ghost btn-sm" data-cancel="1">Cancel</button>' +
+        '</span>';
+      }
+    }
+    return '<div class="inv-row' + (low ? ' low' : '') + '">' + inner + extra + '</div>';
+  }
+
+  function findItem(id){ return invItems.find(function(it){ return String(it.id) === String(id); }); }
+
+  async function invMove(it, delta, reason, note, newStatus){
+    const payload = {};
+    const movRow = { item_id: it.id, item_name: it.name, reason: reason, note: note || null, actor: (session && session.user && session.user.email) || null };
+    if (newStatus != null){
+      payload.status = newStatus;
+      movRow.status_after = newStatus;
+      movRow.delta = null; movRow.qty_after = null;
+    } else {
+      const after = Math.max(0, (it.qty|0) + delta);
+      payload.qty = after;
+      movRow.delta = after - (it.qty|0);
+      movRow.qty_after = after;
+    }
+    const u = await SB.from('inv_items').update(payload).eq('id', it.id);
+    if (u.error){ alert('Update failed: ' + (u.error.message||'error')); return false; }
+    await SB.from('inv_moves').insert(movRow);
+    Object.assign(it, payload);
+    return true;
+  }
+
+  invBody.addEventListener('click', async function(e){
+    const btn = e.target.closest('button, .inv-name');
+    if (!btn) return;
+    if (btn.hasAttribute('data-adj')){
+      invOpenAdjust = { id: btn.getAttribute('data-id'), sign: btn.getAttribute('data-adj') };
+      renderInventory();
+      const amt = document.getElementById('adjAmt'); if (amt){ amt.focus(); amt.select(); }
+    } else if (btn.hasAttribute('data-cancel')){
+      invOpenAdjust = null; renderInventory();
+    } else if (btn.hasAttribute('data-apply')){
+      const it = findItem(btn.getAttribute('data-apply')); if (!it) return;
+      const amt = parseInt(document.getElementById('adjAmt').value, 10) || 0;
+      const reason = document.getElementById('adjReason').value;
+      const note = document.getElementById('adjNote').value.trim();
+      if (amt > 0){
+        const delta = invOpenAdjust.sign === '+' ? amt : -amt;
+        if (await invMove(it, delta, reason, note)){ invOpenAdjust = null; renderInventory(); }
+      }
+    } else if (btn.classList.contains('inv-name')){
+      const id = btn.getAttribute('data-menu');
+      invOpenAdjust = (invOpenAdjust && String(invOpenAdjust.id) === String(id) && invOpenAdjust.mode === 'menu') ? null : { id: id, mode: 'menu' };
+      renderInventory();
+    } else if (btn.hasAttribute('data-count')){
+      invOpenAdjust = { id: btn.getAttribute('data-count'), mode: 'count' };
+      renderInventory();
+      const amt = document.getElementById('adjAmt'); if (amt){ amt.focus(); amt.select(); }
+    } else if (btn.hasAttribute('data-applycount')){
+      const it = findItem(btn.getAttribute('data-applycount')); if (!it) return;
+      const counted = parseInt(document.getElementById('adjAmt').value, 10);
+      const note = document.getElementById('adjNote').value.trim();
+      if (!isNaN(counted) && counted >= 0){
+        if (await invMove(it, counted - (it.qty|0), 'count', note)){ invOpenAdjust = null; renderInventory(); }
+      }
+    } else if (btn.hasAttribute('data-edit')){
+      invOpenAdjust = { id: btn.getAttribute('data-edit'), mode: 'edit' };
+      renderInventory();
+    } else if (btn.hasAttribute('data-applyedit')){
+      const it = findItem(btn.getAttribute('data-applyedit')); if (!it) return;
+      const name = document.getElementById('editName').value.trim();
+      const lowEl = document.getElementById('editLow');
+      const payload = {};
+      if (name && name !== it.name) payload.name = name;
+      if (lowEl){ const la = parseInt(lowEl.value, 10); if (!isNaN(la) && la >= 0) payload.low_at = la; }
+      if (Object.keys(payload).length){
+        const u = await SB.from('inv_items').update(payload).eq('id', it.id);
+        if (u.error){ alert('Update failed: ' + (u.error.message||'error')); return; }
+        Object.assign(it, payload);
+      }
+      invOpenAdjust = null; renderInventory();
+    } else if (btn.hasAttribute('data-archive')){
+      const it = findItem(btn.getAttribute('data-archive')); if (!it) return;
+      if (!window.confirm('Archive ' + it.name + '? It disappears from the list but keeps its history.')) return;
+      const u = await SB.from('inv_items').update({ archived: true }).eq('id', it.id);
+      if (u.error){ alert('Archive failed: ' + (u.error.message||'error')); return; }
+      invItems = invItems.filter(function(x){ return String(x.id) !== String(it.id); });
+      invOpenAdjust = null; renderInventory();
+    } else if (btn.hasAttribute('data-st')){
+      const it = findItem(btn.getAttribute('data-id')); if (!it) return;
+      const st = btn.getAttribute('data-st');
+      if (st !== it.status){ if (await invMove(it, 0, 'status', '', st)) renderInventory(); }
+    }
+  });
+
+  invSearch.addEventListener('input', function(){ invOpenAdjust = null; renderInventory(); });
+  document.getElementById('invRefresh').addEventListener('click', loadInventory);
+
+  /* ---- add item ---- */
+  document.getElementById('invAddBtn').addEventListener('click', async function(){
+    const name = window.prompt('Part name:');
+    if (!name || !name.trim()) return;
+    const catNames = CATS.map(function(c,i){ return (i+1) + '=' + c[1]; }).join('  ');
+    const pick = window.prompt('Category number:\n' + catNames, '9');
+    const idx = (parseInt(pick,10) || 9) - 1;
+    const cat = (CATS[idx] || CATS[CATS.length-1])[0];
+    const tracked = cat !== 'supplies';
+    const row = { name: name.trim(), category: cat, track_qty: tracked, qty: 0, low_at: 5, status: 'good', archived: false, sort_order: 999 };
+    const { data, error } = await SB.from('inv_items').insert(row).select();
+    if (error){ alert('Could not add: ' + (error.message||'error')); return; }
+    if (data && data[0]) invItems.push(data[0]);
+    renderInventory();
+  });
+
+  /* ---- activity history ---- */
+  const invHistCard = document.getElementById('invHistCard');
+  const invHistBody = document.getElementById('invHistBody');
+  const invHistSearch = document.getElementById('invHistSearch');
+  const invHistInfo = document.getElementById('invHistInfo');
+  let invMovesRows = [];
+  let invHistPage = 0;
+
+  document.getElementById('invHistoryBtn').addEventListener('click', async function(){
+    invHistCard.style.display = '';
+    await loadInvMoves();
+  });
+  document.getElementById('invHistClose').addEventListener('click', function(){ invHistCard.style.display = 'none'; });
+
+  async function loadInvMoves(){
+    invHistBody.innerHTML = '<tr><td colspan="6" class="muted-sm">Loading\u2026</td></tr>';
+    const { data, error } = await SB.from('inv_moves').select('*').order('created_at', { ascending: false }).limit(1000);
+    if (error){ invHistBody.innerHTML = '<tr><td colspan="6" class="muted-sm">Could not load: ' + esc(error.message||'') + '</td></tr>'; return; }
+    invMovesRows = data || [];
+    invHistPage = 0;
+    renderInvMoves();
+  }
+  function renderInvMoves(){
+    const q = (invHistSearch.value||'').trim().toLowerCase();
+    const rows = q ? invMovesRows.filter(function(m){ return (m.item_name||'').toLowerCase().indexOf(q) > -1; }) : invMovesRows;
+    const pages = Math.max(1, Math.ceil(rows.length / 50));
+    if (invHistPage > pages-1) invHistPage = pages-1;
+    const start = invHistPage * 50;
+    const page = rows.slice(start, start + 50);
+    invHistBody.innerHTML = page.map(function(m){
+      let chg;
+      if (m.status_after != null) chg = '\u2192 ' + esc(m.status_after);
+      else chg = ((m.delta|0) > 0 ? '+' : '') + (m.delta|0) + ' \u2192 ' + (m.qty_after|0);
+      const dt = new Date(m.created_at);
+      const when = isNaN(dt.getTime()) ? '' : dt.toLocaleDateString() + ' ' + dt.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      return '<tr><td>' + when + '</td><td>' + esc(m.item_name) + '</td><td>' + chg + '</td><td>' + esc(m.reason) + '</td><td>' + esc(m.note||'') + '</td><td>' + esc((m.actor||'').split('@')[0]) + '</td></tr>';
+    }).join('') || '<tr><td colspan="6" class="muted-sm">No activity yet.</td></tr>';
+    invHistInfo.textContent = rows.length ? ('Showing ' + (start+1) + '\u2013' + Math.min(start+50, rows.length) + ' of ' + rows.length) : '';
+    document.getElementById('invHistPrev').disabled = invHistPage === 0;
+    document.getElementById('invHistNext').disabled = invHistPage >= pages-1;
+  }
+  invHistSearch.addEventListener('input', function(){ invHistPage = 0; renderInvMoves(); });
+  document.getElementById('invHistPrev').addEventListener('click', function(){ invHistPage--; renderInvMoves(); });
+  document.getElementById('invHistNext').addEventListener('click', function(){ invHistPage++; renderInvMoves(); });
   function fmtDate(v){ if(!v) return ''; const d=new Date(v); return isNaN(d.getTime())?'':d.toLocaleDateString(); }
   function getFiltered(){
     const q = (histSearch.value || '').trim().toLowerCase();
