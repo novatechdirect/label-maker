@@ -630,7 +630,9 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .inv-topbar{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
   .inv-topbar input[type=text]{ flex:1; min-width:180px; border:1px solid var(--line-strong); border-radius:10px; padding:9px 12px; font-size:13.5px; background:var(--paper); color:var(--ink); }
   .inv-topbar-right{ display:flex; gap:8px; }
-  .inv-cat{ margin:18px 0 6px; font-size:11.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); }
+  .inv-cat{ margin:18px 0 6px; font-size:11.5px; font-weight:700; letter-spacing:0.08em; text-transform:uppercase; color:var(--muted); display:flex; align-items:center; gap:8px; }
+  .cat-add{ width:20px; height:20px; border-radius:6px; border:1px solid var(--line-strong); background:var(--paper); color:var(--muted); font-size:14px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:0; line-height:1; }
+  .cat-add:hover{ background:var(--soft); color:var(--ink); }
   .inv-row{ display:flex; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--line); border-radius:10px; margin-bottom:6px; background:var(--paper); flex-wrap:wrap; }
   .inv-row.low{ border-color:#f0c9c4; background:#fff7f6; }
   .inv-name{ flex:1; min-width:140px; font-size:14px; font-weight:600; cursor:pointer; }
@@ -638,7 +640,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .inv-qty{ font-size:17px; font-weight:700; min-width:44px; text-align:right; font-variant-numeric:tabular-nums; }
   .inv-qty.zero{ color:#b42318; }
   .inv-btns{ display:flex; gap:6px; }
-  .qbtn{ width:30px; height:30px; border-radius:8px; border:1px solid var(--line-strong); background:var(--paper); font-size:16px; font-weight:700; cursor:pointer; color:var(--ink); line-height:1; }
+  .qbtn{ width:30px; height:30px; border-radius:8px; border:1px solid var(--line-strong); background:var(--paper); font-size:16px; font-weight:700; cursor:pointer; color:var(--ink); line-height:1; display:inline-flex; align-items:center; justify-content:center; padding:0; }
   .qbtn:hover{ background:var(--soft); }
   .adjust-bar{ width:100%; display:flex; gap:8px; align-items:center; padding-top:8px; flex-wrap:wrap; }
   .adjust-bar input[type=number]{ width:80px; border:1px solid var(--line-strong); border-radius:8px; padding:6px 8px; font-size:13.5px; }
@@ -741,7 +743,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v16</span>
+      <span class="version" id="version">v17</span>
     </div>
   </div>
 </nav>
@@ -902,21 +904,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <div class="inv-topbar">
         <input id="invSearch" type="text" placeholder="Search parts">
         <div class="inv-topbar-right">
-          <button class="ghost btn-sm" id="invHistoryBtn">Activity</button>
-          <button class="ghost btn-sm" id="invAddBtn">+ Add item</button>
           <button class="ghost btn-sm" id="invRefresh">Refresh</button>
         </div>
       </div>
       <div id="invBody"><p class="muted-line">Loading&hellip;</p></div>
     </section>
 
-    <section class="card" id="invHistCard" style="display:none;">
+    <section class="card" id="invHistCard">
       <h2 class="card-title">Activity</h2>
       <div class="inv-topbar">
         <input id="invHistSearch" type="text" placeholder="Filter by part name">
-        <div class="inv-topbar-right">
-          <button class="ghost btn-sm" id="invHistClose">Close</button>
-        </div>
       </div>
       <div class="table-wrap">
         <table class="hist-table">
@@ -1403,7 +1400,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   const REASONS_PLUS  = [['received','Received'],['correction','Correction'],['count','Count']];
   const REASONS_MINUS = [['build','Used for builds'],['correction','Correction'],['count','Count']];
   let invItems = [];
-  let invOpenAdjust = null; // {id, sign} or {id, mode:'menu'|'count'|'edit'}
+  let invOpenAdjust = null;
+  let invAddCat = null; // {id, sign} or {id, mode:'menu'|'count'|'edit'}
 
   const invBody = document.getElementById('invBody');
   const invSearch = document.getElementById('invSearch');
@@ -1418,6 +1416,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     if (error){ invBody.innerHTML = '<p class="muted-line">Could not load inventory: ' + esc(error.message||'error') + '. Make sure the inventory tables are set up.</p>'; return; }
     invItems = data || [];
     renderInventory();
+    loadInvMoves();
   }
 
   function isLow(it){
@@ -1437,18 +1436,30 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       return '<span class="low-chip">' + esc(it.name) + tail + '</span>';
     }).join('');
 
-    if (!items.length){
-      invBody.innerHTML = '<p class="muted-line">' + (q ? 'No parts match.' : 'No parts yet. Use \u201c+ Add item\u201d to create your first part, or run the seed SQL.') + '</p>';
+    if (q && !items.length){
+      invBody.innerHTML = '<p class="muted-line">No parts match.</p>';
       return;
     }
     let htmlOut = '';
     CATS.forEach(function(c){
       const catItems = items.filter(function(it){ return it.category === c[0]; });
-      if (!catItems.length) return;
-      htmlOut += '<div class="inv-cat">' + c[1] + '</div>';
+      if (q && !catItems.length) return;
+      htmlOut += '<div class="inv-cat">' + c[1] +
+        '<button type="button" class="cat-add" data-addcat="' + c[0] + '" title="Add to ' + c[1] + '">+</button></div>';
+      if (invAddCat === c[0]) htmlOut += addRowHtml(c[0]);
       catItems.forEach(function(it){ htmlOut += rowHtml(it); });
     });
     invBody.innerHTML = htmlOut;
+  }
+
+  function addRowHtml(cat){
+    const tracked = cat !== 'supplies';
+    return '<div class="inv-row"><span class="adjust-bar" style="padding-top:0;">' +
+      '<input type="text" id="addName" placeholder="Part name" style="flex:1;min-width:140px;border:1px solid var(--line-strong);border-radius:8px;padding:6px 8px;font-size:12.5px;">' +
+      (tracked ? '<span class="lbl">Low at</span><input type="number" id="addLow" min="0" step="1" value="5">' : '') +
+      '<button type="button" class="primary btn-sm" data-applyadd="' + cat + '">Add</button>' +
+      '<button type="button" class="ghost btn-sm" data-cancel="1">Cancel</button>' +
+    '</span></div>';
   }
 
   function rowHtml(it){
@@ -1489,7 +1500,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         extra = '<span class="inv-menu-row">' +
           '<button type="button" class="ghost btn-sm" data-count="' + it.id + '">Set count</button>' +
           '<button type="button" class="ghost btn-sm" data-edit="' + it.id + '">Edit</button>' +
-          '<button type="button" class="ghost btn-sm danger" data-archive="' + it.id + '">Archive</button>' +
+          '<button type="button" class="ghost btn-sm" data-archive="' + it.id + '">Archive</button>' +
+          '<button type="button" class="ghost btn-sm danger" data-delete="' + it.id + '">Delete</button>' +
           '<button type="button" class="ghost btn-sm" data-cancel="1">Close</button>' +
         '</span>';
       } else if (oa.mode === 'count'){
@@ -1531,6 +1543,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     if (u.error){ alert('Update failed: ' + (u.error.message||'error')); return false; }
     await SB.from('inv_moves').insert(movRow);
     Object.assign(it, payload);
+    invMovesRows.unshift(Object.assign({ id: 'local' + Date.now(), created_at: new Date().toISOString() }, movRow));
+    renderInvMoves();
     return true;
   }
 
@@ -1542,7 +1556,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       renderInventory();
       const amt = document.getElementById('adjAmt'); if (amt){ amt.focus(); amt.select(); }
     } else if (btn.hasAttribute('data-cancel')){
-      invOpenAdjust = null; renderInventory();
+      invOpenAdjust = null; invAddCat = null; renderInventory();
+    } else if (btn.hasAttribute('data-addcat')){
+      const cat = btn.getAttribute('data-addcat');
+      invOpenAdjust = null;
+      invAddCat = (invAddCat === cat) ? null : cat;
+      renderInventory();
+      const nm = document.getElementById('addName'); if (nm) nm.focus();
+    } else if (btn.hasAttribute('data-applyadd')){
+      const cat = btn.getAttribute('data-applyadd');
+      const name = document.getElementById('addName').value.trim();
+      if (!name) return;
+      const lowEl = document.getElementById('addLow');
+      const row = { name: name, category: cat, track_qty: cat !== 'supplies', qty: 0,
+        low_at: lowEl ? (parseInt(lowEl.value, 10) || 0) : 0, status: 'good', archived: false, sort_order: 999 };
+      const { data, error } = await SB.from('inv_items').insert(row).select();
+      if (error){ alert('Could not add: ' + (error.message||'error')); return; }
+      if (data && data[0]) invItems.push(data[0]);
+      invAddCat = null;
+      renderInventory();
     } else if (btn.hasAttribute('data-apply')){
       const it = findItem(btn.getAttribute('data-apply')); if (!it) return;
       const amt = parseInt(document.getElementById('adjAmt').value, 10) || 0;
@@ -1590,6 +1622,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       if (u.error){ alert('Archive failed: ' + (u.error.message||'error')); return; }
       invItems = invItems.filter(function(x){ return String(x.id) !== String(it.id); });
       invOpenAdjust = null; renderInventory();
+    } else if (btn.hasAttribute('data-delete')){
+      const it = findItem(btn.getAttribute('data-delete')); if (!it) return;
+      if (!window.confirm('Permanently delete ' + it.name + ' AND its history? (Use Archive to keep the history.)')) return;
+      const del = await SB.from('inv_items').delete().eq('id', it.id);
+      if (del.error){ alert('Delete failed: ' + (del.error.message||'error')); return; }
+      invItems = invItems.filter(function(x){ return String(x.id) !== String(it.id); });
+      invMovesRows = invMovesRows.filter(function(m){ return String(m.item_id) !== String(it.id); });
+      invOpenAdjust = null;
+      renderInventory();
+      renderInvMoves();
     } else if (btn.hasAttribute('data-st')){
       const it = findItem(btn.getAttribute('data-id')); if (!it) return;
       const st = btn.getAttribute('data-st');
@@ -1597,24 +1639,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
   });
 
-  invSearch.addEventListener('input', function(){ invOpenAdjust = null; renderInventory(); });
+  invSearch.addEventListener('input', function(){ invOpenAdjust = null; invAddCat = null; renderInventory(); });
   document.getElementById('invRefresh').addEventListener('click', loadInventory);
-
-  /* ---- add item ---- */
-  document.getElementById('invAddBtn').addEventListener('click', async function(){
-    const name = window.prompt('Part name:');
-    if (!name || !name.trim()) return;
-    const catNames = CATS.map(function(c,i){ return (i+1) + '=' + c[1]; }).join('  ');
-    const pick = window.prompt('Category number:\n' + catNames, '9');
-    const idx = (parseInt(pick,10) || 9) - 1;
-    const cat = (CATS[idx] || CATS[CATS.length-1])[0];
-    const tracked = cat !== 'supplies';
-    const row = { name: name.trim(), category: cat, track_qty: tracked, qty: 0, low_at: 5, status: 'good', archived: false, sort_order: 999 };
-    const { data, error } = await SB.from('inv_items').insert(row).select();
-    if (error){ alert('Could not add: ' + (error.message||'error')); return; }
-    if (data && data[0]) invItems.push(data[0]);
-    renderInventory();
-  });
 
   /* ---- activity history ---- */
   const invHistCard = document.getElementById('invHistCard');
@@ -1623,12 +1649,6 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   const invHistInfo = document.getElementById('invHistInfo');
   let invMovesRows = [];
   let invHistPage = 0;
-
-  document.getElementById('invHistoryBtn').addEventListener('click', async function(){
-    invHistCard.style.display = '';
-    await loadInvMoves();
-  });
-  document.getElementById('invHistClose').addEventListener('click', function(){ invHistCard.style.display = 'none'; });
 
   async function loadInvMoves(){
     invHistBody.innerHTML = '<tr><td colspan="6" class="muted-sm">Loading\u2026</td></tr>';
