@@ -619,6 +619,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .danger{ color:#b42318; border-color:#f0c9c4; }
   .danger:not(:disabled):hover{ background:#fdecea; }
 
+  /* --- v15: action bar --- */
+  .hist-actions{ display:flex; justify-content:space-between; align-items:center; gap:10px; margin:12px 0 4px; flex-wrap:wrap; }
+  .hist-actions-left, .hist-actions-right{ display:flex; align-items:center; gap:8px; }
+  .btn-sm{ padding:5px 11px !important; font-size:12.5px !important; border-radius:8px !important; }
+  .sel-sm{ height:30px; padding:0 8px; font-size:12.5px; border:1px solid var(--line-strong); border-radius:8px; background:var(--paper); color:var(--ink); cursor:pointer; }
+  .sel-sm:disabled{ opacity:0.5; cursor:default; }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -704,7 +711,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v14</span>
+      <span class="version" id="version">v15</span>
     </div>
   </div>
 </nav>
@@ -807,9 +814,24 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         <input id="histSearch" type="text" placeholder="Filter by serial, customer, or order #">
         <label class="date-lbl">From <input id="histFrom" type="date"></label>
         <label class="date-lbl">To <input id="histTo" type="date"></label>
-        <button class="ghost" id="histRefresh">Refresh</button>
-        <button class="ghost" id="histCsv">Export CSV</button>
-        <button class="ghost danger" id="histDelSel" disabled>Delete selected</button>
+      </div>
+      <div class="hist-actions">
+        <div class="hist-actions-left">
+          <select class="sel-sm" id="histBulkStatus" disabled title="Set status for selected rows">
+            <option value="">Set status\u2026</option>
+            <option value="ordered">Ordered</option>
+            <option value="backordered">Backordered</option>
+            <option value="building">Building</option>
+            <option value="shipped">Shipped</option>
+            <option value="warranty">Warranty</option>
+            <option value="returned">Returned</option>
+          </select>
+          <button class="ghost danger btn-sm" id="histDelSel" disabled>Delete selected</button>
+        </div>
+        <div class="hist-actions-right">
+          <button class="ghost btn-sm" id="histRefresh">Refresh</button>
+          <button class="ghost btn-sm" id="histCsv">Export CSV</button>
+        </div>
       </div>
       <div class="table-wrap">
         <table class="hist-table">
@@ -866,6 +888,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   const histPager    = document.getElementById('histPager');
   const histSelectAll = document.getElementById('histSelectAll');
   const histDelSel    = document.getElementById('histDelSel');
+  const histBulkStatus = document.getElementById('histBulkStatus');
   const customerEl  = document.getElementById('customer');
   const orderEl     = document.getElementById('order');
   const statusEl    = document.getElementById('status');
@@ -1378,6 +1401,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       histDelSel.disabled = selectedIds.size === 0;
       histDelSel.textContent = selectedIds.size ? ('Delete selected (' + selectedIds.size + ')') : 'Delete selected';
     }
+    if (histBulkStatus){ histBulkStatus.disabled = selectedIds.size === 0; }
   }
 
   async function deleteSelected(){
@@ -1394,6 +1418,22 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     selectedIds.clear();
     await loadHistory();
     histNote.textContent = 'Deleted ' + n + ' row' + (n===1?'':'s') + '.';
+  }
+
+  async function bulkStatus(val){
+    if (!SB || !session || !val || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    histNote.textContent = 'Updating\u2026';
+    for (let i = 0; i < ids.length; i += 100){
+      const chunk = ids.slice(i, i + 100).map(function(x){ return isNaN(+x) ? x : +x; });
+      const { error } = await SB.from('pc_log').update({ status: val }).in('id', chunk);
+      if (error){ histNote.textContent = 'Update failed: ' + (error.message || 'error'); return; }
+    }
+    const sel = new Set(ids.map(String));
+    historyRows.forEach(function(r){ if (sel.has(String(r.id))) r.status = val; });
+    const n = ids.length;
+    renderHistory();
+    histNote.textContent = 'Updated ' + n + ' row' + (n===1?'':'s') + ' to ' + val + '.';
   }
 
   async function sbMaxSerial(year){
@@ -1434,6 +1474,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     renderHistory();
   });
   histDelSel.addEventListener('click', deleteSelected);
+  histBulkStatus.addEventListener('change', function(){
+    const v = histBulkStatus.value;
+    histBulkStatus.value = '';
+    bulkStatus(v);
+  });
   histBody.addEventListener('click', function(e){
     const btn = e.target.closest('button');
     if (!btn) return;
