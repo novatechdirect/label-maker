@@ -698,7 +698,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v12</span>
+      <span class="version" id="version">v13</span>
     </div>
   </div>
 </nav>
@@ -1035,8 +1035,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       doc.setFont('helvetica','normal');
       doc.setFontSize(17);
       doc.setTextColor(0,0,0);
-      let y = 0.72;
-      lastSpecLines.forEach(line => { doc.text(String(line), 0.28, y); y += 0.34; });
+      const specTop = 0.72, specStep = 0.34;
+      let y = specTop;
+      lastSpecLines.forEach(line => { doc.text(String(line), 0.28, y); y += specStep; });
+      const specsBottom = specTop + Math.max(0, lastSpecLines.length - 1) * specStep + 0.12;
 
       // Barcode image
       const canvas = makeBarcodeCanvas(serial);
@@ -1046,7 +1048,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       const pad  = 0.13;
       const imgW = boxW - pad*2;
       const imgH = imgW * (canvas.height / canvas.width);
-      const boxY = 2.05;
+      const boxY = Math.max(2.05, specsBottom + 0.3);  // drop the barcode below the specs
 
       // Serial text sized to fit
       doc.setFont('courier','bold');
