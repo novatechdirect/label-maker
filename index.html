@@ -589,6 +589,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .nav-right{ display:flex; align-items:center; gap:10px; margin-left:auto; }
   .status-select{ border:1px solid transparent; border-radius:999px; padding:3px 10px; font-size:11.5px; font-weight:600; cursor:pointer; -webkit-appearance:none; appearance:none; }
 
+  /* --- v8: full-site login gate --- */
+  #loginView{ display:flex; justify-content:center; padding:48px 0; }
+  .login-card{ width:100%; max-width:360px; background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:26px; box-shadow:var(--shadow); }
+  .login-title{ font-size:18px; margin:0 0 4px; letter-spacing:-0.01em; }
+  .login-card input{ width:100%; margin-bottom:10px; border:1px solid var(--line-strong); border-radius:10px; padding:11px 12px; font-size:14px; background:var(--paper); color:var(--ink); }
+  .login-card input:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .login-card button{ width:100%; }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -674,12 +682,25 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v7</span>
+      <span class="version" id="version">v8</span>
     </div>
   </div>
 </nav>
 
 <div class="controls">
+
+  <div id="loginView">
+    <div class="login-card">
+      <h2 class="login-title">Sign in</h2>
+      <p class="muted-line">Sign in to use Novatech tools.</p>
+      <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
+      <input id="authPass" type="password" placeholder="Password" autocomplete="current-password">
+      <button class="primary" id="signInBtn">Sign in</button>
+      <div class="auth-err" id="authErr"></div>
+    </div>
+  </div>
+
+  <div id="appView" style="display:none;">
   <header class="app-header">
     <div class="brand">
       <div>
@@ -759,16 +780,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
   <section class="card" id="historyCard">
     <h2 class="card-title">Order history</h2>
-    <div id="authGate">
-      <p class="muted-line">Sign in to save orders and view history.</p>
-      <div class="login-row">
-        <input id="authEmail" type="email" placeholder="Email" autocomplete="username">
-        <input id="authPass" type="password" placeholder="Password" autocomplete="current-password">
-        <button class="primary" id="signInBtn">Sign in</button>
-      </div>
-      <div class="auth-err" id="authErr"></div>
-    </div>
-    <div id="historyBody" style="display:none;">
+    <div id="historyBody">
       <div class="hist-toolbar">
         <input id="histSearch" type="text" placeholder="Filter by serial, customer, or order #">
         <button class="ghost" id="histRefresh">Refresh</button>
@@ -786,6 +798,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <div class="hist-note" id="histNote"></div>
     </div>
   </section>
+  </div>
 </div>
 
 <div id="printArea"></div>
@@ -805,8 +818,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   const sheetBtn  = document.getElementById('sheetBtn');
   const sheetStatus = document.getElementById('sheetStatus');
   const authChip    = document.getElementById('authChip');
-  const authGate    = document.getElementById('authGate');
-  const historyBody = document.getElementById('historyBody');
+  const loginView   = document.getElementById('loginView');
+  const appView     = document.getElementById('appView');
   const authEmail   = document.getElementById('authEmail');
   const authPass    = document.getElementById('authPass');
   const signInBtn   = document.getElementById('signInBtn');
@@ -1095,7 +1108,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   // ---- Auth ----
   async function initAuth(){
     if (!SB){
-      authGate.innerHTML = '<p class="muted-line">Couldn\u2019t load the database library (check your connection). Label generation still works.</p>';
+      loginView.innerHTML = '<div class="login-card"><h2 class="login-title">Connection problem</h2><p class="muted-line">Could not load the sign-in library. Check your internet connection and refresh the page.</p></div>';
       return;
     }
     const { data } = await SB.auth.getSession();
@@ -1117,12 +1130,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       authChip.innerHTML = session.user.email + ' <a id="signOutLink">Sign out</a>';
       const link = document.getElementById('signOutLink');
       if (link) link.addEventListener('click', function(){ SB.auth.signOut(); });
-      authGate.style.display = 'none';
-      historyBody.style.display = '';
+      loginView.style.display = 'none';
+      appView.style.display = '';
     } else {
       authChip.style.display = 'none';
-      authGate.style.display = '';
-      historyBody.style.display = 'none';
+      loginView.style.display = '';
+      appView.style.display = 'none';
     }
   }
 
