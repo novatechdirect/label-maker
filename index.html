@@ -613,6 +613,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .hist-pager button{ padding:6px 12px; font-size:13px; }
   #histPageInfo{ font-size:12.5px; color:var(--muted); }
 
+  /* --- v14: bulk select/delete --- */
+  .chk-col{ width:34px; text-align:center; }
+  .chk-col input{ cursor:pointer; }
+  .danger{ color:#b42318; border-color:#f0c9c4; }
+  .danger:not(:disabled):hover{ background:#fdecea; }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -698,7 +704,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v13</span>
+      <span class="version" id="version">v14</span>
     </div>
   </div>
 </nav>
@@ -803,10 +809,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         <label class="date-lbl">To <input id="histTo" type="date"></label>
         <button class="ghost" id="histRefresh">Refresh</button>
         <button class="ghost" id="histCsv">Export CSV</button>
+        <button class="ghost danger" id="histDelSel" disabled>Delete selected</button>
       </div>
       <div class="table-wrap">
         <table class="hist-table">
           <thead><tr>
+            <th class="chk-col"><input type="checkbox" id="histSelectAll" title="Select all (filtered)"></th>
             <th>Date</th><th>Customer</th><th>Order #</th><th>Serial</th><th>Status</th><th></th>
           </tr></thead>
           <tbody id="histBody"></tbody>
@@ -856,6 +864,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   const histNext     = document.getElementById('histNext');
   const histPageInfo = document.getElementById('histPageInfo');
   const histPager    = document.getElementById('histPager');
+  const histSelectAll = document.getElementById('histSelectAll');
+  const histDelSel    = document.getElementById('histDelSel');
   const customerEl  = document.getElementById('customer');
   const orderEl     = document.getElementById('order');
   const statusEl    = document.getElementById('status');
@@ -1245,6 +1255,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   let historyRows = [];
   const PAGE_SIZE = 50;
   let histPage = 0;
+  let selectedIds = new Set();
   async function loadHistory(){
     if (!SB || !session) return;
     histNote.textContent = 'Loading\u2026';
@@ -1255,6 +1266,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       .limit(1000);
     if (error){ histNote.textContent = 'Could not load history: ' + (error.message || 'error'); return; }
     historyRows = data || [];
+    selectedIds.clear();
     histPage = 0;
     histNote.textContent = '';
     renderHistory();
@@ -1299,6 +1311,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         .filter(function(pr){ return pr[1]; })
         .map(function(pr){ return '<b>'+pr[0]+':</b> '+esc(pr[1]); }).join('&nbsp;&nbsp;&middot;&nbsp;&nbsp;');
       return '<tr>' +
+        '<td class="chk-col"><input type="checkbox" class="row-chk" data-id="'+esc(r.id)+'"'+(selectedIds.has(String(r.id))?' checked':'')+'></td>' +
         '<td>'+fmtDate(r.generated_at || r.created_at)+'</td>' +
         '<td>'+esc(r.customer)+'</td>' +
         '<td>'+esc(r.order_no)+'</td>' +
@@ -1310,11 +1323,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         '</td>' +
       '</tr>' +
       '<tr class="detail-row" id="detail-'+esc(r.id)+'" style="display:none;">' +
-        '<td colspan="6" class="detail-cell">'+(specsText || '<span>No specs recorded.</span>')+'</td>' +
+        '<td colspan="7" class="detail-cell">'+(specsText || '<span>No specs recorded.</span>')+'</td>' +
       '</tr>';
     }).join('');
     histPrev.disabled = histPage === 0;
     histNext.disabled = histPage >= pages - 1;
+    updateSelectionUI();
     histPageInfo.textContent = total === 0
       ? 'No matching records'
       : ('Showing ' + (startIdx + 1) + '\u2013' + Math.min(startIdx + PAGE_SIZE, total) + ' of ' + total);
@@ -1355,6 +1369,33 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
   }
 
+  function updateSelectionUI(){
+    const filteredIds = getFiltered().map(function(r){ return String(r.id); });
+    const allSel = filteredIds.length > 0 && filteredIds.every(function(id){ return selectedIds.has(id); });
+    const someSel = filteredIds.some(function(id){ return selectedIds.has(id); });
+    if (histSelectAll){ histSelectAll.checked = allSel; histSelectAll.indeterminate = !allSel && someSel; }
+    if (histDelSel){
+      histDelSel.disabled = selectedIds.size === 0;
+      histDelSel.textContent = selectedIds.size ? ('Delete selected (' + selectedIds.size + ')') : 'Delete selected';
+    }
+  }
+
+  async function deleteSelected(){
+    if (!SB || !session || selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    if (!window.confirm('Delete ' + ids.length + ' selected serial' + (ids.length===1?'':'s') + ' from the log? This cannot be undone.')) return;
+    histNote.textContent = 'Deleting\u2026';
+    for (let i = 0; i < ids.length; i += 100){
+      const chunk = ids.slice(i, i + 100).map(function(x){ return isNaN(+x) ? x : +x; });
+      const { error } = await SB.from('pc_log').delete().in('id', chunk);
+      if (error){ histNote.textContent = 'Delete failed: ' + (error.message || 'error'); return; }
+    }
+    const n = ids.length;
+    selectedIds.clear();
+    await loadHistory();
+    histNote.textContent = 'Deleted ' + n + ' row' + (n===1?'':'s') + '.';
+  }
+
   async function sbMaxSerial(year){
     if (!SB || !session) return -1;
     const { data, error } = await SB.rpc('max_serial', { yr: year });
@@ -1371,17 +1412,28 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   signInBtn.addEventListener('click', signIn);
   authPass.addEventListener('keydown', function(e){ if (e.key === 'Enter') signIn(); });
   histRefresh.addEventListener('click', loadHistory);
-  histSearch.addEventListener('input', function(){ histPage = 0; renderHistory(); });
-  histFrom.addEventListener('change', function(){ histPage = 0; renderHistory(); });
-  histTo.addEventListener('change', function(){ histPage = 0; renderHistory(); });
+  histSearch.addEventListener('input', function(){ selectedIds.clear(); histPage = 0; renderHistory(); });
+  histFrom.addEventListener('change', function(){ selectedIds.clear(); histPage = 0; renderHistory(); });
+  histTo.addEventListener('change', function(){ selectedIds.clear(); histPage = 0; renderHistory(); });
   histPrev.addEventListener('click', function(){ histPage--; renderHistory(); });
   histNext.addEventListener('click', function(){ histPage++; renderHistory(); });
   histBody.addEventListener('change', function(e){
     const el = e.target;
     if (el && el.classList && el.classList.contains('status-select')){
       updateStatus(el.getAttribute('data-id'), el.value, el);
+    } else if (el && el.classList && el.classList.contains('row-chk')){
+      const id = el.getAttribute('data-id');
+      if (el.checked) selectedIds.add(id); else selectedIds.delete(id);
+      updateSelectionUI();
     }
   });
+  histSelectAll.addEventListener('change', function(){
+    const filteredIds = getFiltered().map(function(r){ return String(r.id); });
+    if (histSelectAll.checked) filteredIds.forEach(function(id){ selectedIds.add(id); });
+    else filteredIds.forEach(function(id){ selectedIds.delete(id); });
+    renderHistory();
+  });
+  histDelSel.addEventListener('click', deleteSelected);
   histBody.addEventListener('click', function(e){
     const btn = e.target.closest('button');
     if (!btn) return;
