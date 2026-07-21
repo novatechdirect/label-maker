@@ -568,7 +568,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
 <div class="controls">
   <h1>Shipping Label Maker</h1>
-  <p class="sub">One 4×6 label per serial number. Enter the specs once, paste the serials, generate, then download a 4×6 PDF (works on Mac and iPhone) or print directly.</p>
+  <p class="sub">Enter the specs once, paste the serials, generate, then download the 4×6 box label PDF or the small 1×2⅛ Dymo serial-label PDF (barcode only). Both work on Mac, Windows, and iPhone.</p>
 
   <div class="grid">
     <div class="field">
@@ -589,6 +589,7 @@ Storage: 1TB Nvme SSD</textarea>
   <div class="bar">
     <button class="primary" id="generateBtn">Generate labels</button>
     <button class="primary" id="pdfBtn" disabled>Download 4×6 PDF</button>
+    <button class="primary" id="dymoBtn" disabled>Download Dymo 1×2⅛ PDF</button>
     <button class="ghost" id="printBtn" disabled>Print</button>
     <span class="count" id="count"></span>
   </div>
@@ -610,6 +611,7 @@ Storage: 1TB Nvme SSD</textarea>
   const genBtn    = document.getElementById('generateBtn');
   const printBtn  = document.getElementById('printBtn');
   const pdfBtn    = document.getElementById('pdfBtn');
+  const dymoBtn   = document.getElementById('dymoBtn');
   const countEl   = document.getElementById('count');
   const errEl     = document.getElementById('err');
   const printArea = document.getElementById('printArea');
@@ -628,12 +630,12 @@ Storage: 1TB Nvme SSD</textarea>
 
   // Render Code 128-B bars to an off-screen canvas at high resolution.
   // Hard-edged, high-DPI raster survives a PDF reader's low-DPI rasterization.
-  function makeBarcodeCanvas(serial){
+  function makeBarcodeCanvas(serial, barHeight){
     const canvas = document.createElement('canvas');
     JsBarcode(canvas, serial, {
       format: "CODE128B",
       width: 6,        // 6 device px per module -> crisp integer bars, ~1400px wide
-      height: 430,
+      height: barHeight || 430,
       displayValue: false,
       margin: 10,      // quiet zone baked into the image
       background: "#ffffff",
@@ -734,6 +736,7 @@ Storage: 1TB Nvme SSD</textarea>
     lastSerials = serials;
     printBtn.disabled = false;
     pdfBtn.disabled = false;
+    dymoBtn.disabled = false;
   }
 
   // Build a true 4x6 PDF in-page (no reliance on the browser print dialog or paper size).
@@ -783,6 +786,52 @@ Storage: 1TB Nvme SSD</textarea>
     doc.save('shipping-labels.pdf');
   }
 
+  // Build a PDF of small Dymo labels (1 in x 2 1/8 in) — barcode + serial only, no specs.
+  // Page is landscape: 2.125 in wide x 1 in tall, one label per page.
+  function generatePdfDymo(){
+    const { jsPDF } = window.jspdf;
+    const LW = 2.125, LH = 1.0;               // label width x height (inches)
+    const doc = new jsPDF({ unit:'in', format:[LW, LH], orientation:'landscape' });
+
+    lastSerials.forEach((serial, i) => {
+      if (i > 0) doc.addPage([LW, LH], 'landscape');
+
+      const canvas = makeBarcodeCanvas(serial, 260);
+      const dataUrl = canvas.toDataURL('image/png');
+      const cw = canvas.width, ch = canvas.height;
+
+      // Serial text: FIXED baseline near the bottom, with a guaranteed margin.
+      // Anchoring the text (rather than placing it relative to the barcode) means
+      // it can never be pushed off the label if the barcode renders taller than expected.
+      doc.setFont('courier','bold');
+      let fs = 12;
+      doc.setFontSize(fs);
+      const maxTextW = LW - 0.24;
+      while (doc.getTextWidth(serial) > maxTextW && fs > 5){ fs -= 0.5; doc.setFontSize(fs); }
+      const textH = fs / 72;
+      const bottomMargin = 0.10;
+      const textBaseline = LH - bottomMargin;        // glyph baseline sits here
+
+      // Barcode fills the space above the text, centered, capped so it can't overlap.
+      const topMargin = 0.06;
+      const gap = 0.03;
+      const regionTop = topMargin;
+      const regionBottom = (textBaseline - textH) - gap;
+      const regionH = Math.max(regionBottom - regionTop, 0.2);
+      let imgW = LW - 0.18;                            // ~1.945 in -> full width
+      let imgH = imgW * (ch / cw);
+      if (imgH > regionH){ imgH = regionH; imgW = imgH * (cw / ch); }
+      const imgX = (LW - imgW) / 2;
+      const imgY = regionTop + (regionH - imgH) / 2;
+
+      doc.addImage(dataUrl, 'PNG', imgX, imgY, imgW, imgH);
+      doc.setTextColor(0,0,0);
+      doc.text(serial, LW/2, textBaseline, { align:'center' });
+    });
+
+    doc.save('dymo-serial-labels.pdf');
+  }
+
   function reset(){
     printArea.innerHTML = '';
     previewScroll.innerHTML = '';
@@ -790,11 +839,13 @@ Storage: 1TB Nvme SSD</textarea>
     countEl.textContent = '';
     printBtn.disabled = true;
     pdfBtn.disabled = true;
+    dymoBtn.disabled = true;
   }
 
   genBtn.addEventListener('click', generate);
   printBtn.addEventListener('click', () => window.print());
   pdfBtn.addEventListener('click', generatePdf);
+  dymoBtn.addEventListener('click', generatePdfDymo);
 })();
 </script>
 </body>
