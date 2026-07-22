@@ -760,7 +760,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v19</span>
+      <span class="version" id="version">v21</span>
     </div>
   </div>
 </nav>
@@ -1901,6 +1901,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     const hrs = await SB.from('tc_hours').select('*').order('week_ending', { ascending: false }).limit(2000);
     tcHoursRows = hrs.data || [];
     renderTcMine();
+    const myCard = tcNoProfile.closest('section');
+    if (myCard) myCard.style.display = tcIsAdmin ? 'none' : '';
     tcAdminCard.style.display = tcIsAdmin ? '' : 'none';
     tcTeamCard.style.display = tcIsAdmin ? '' : 'none';
     if (tcIsAdmin){ initPeriodSelect(); renderTcSummary(); renderTcTeam(); }
@@ -1965,7 +1967,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     const w1 = shiftFriday(w2, -7);
     document.getElementById('tcW1Head').textContent = 'Wk ' + fmtWeekLabel(w1);
     document.getElementById('tcW2Head').textContent = 'Wk ' + fmtWeekLabel(w2);
-    const active = tcEmployees.filter(function(e){ return e.active; });
+    const active = tcEmployees.filter(function(e){ return e.active && !e.is_admin; });
     let anyMissing = false;
     document.getElementById('tcSummaryBody').innerHTML = active.map(function(e){
       function hrs(wk){
@@ -1999,7 +2001,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   });
   document.getElementById('tcCsvBtn').addEventListener('click', function(){
     const w2 = tcPeriodEndEl.value, w1 = shiftFriday(w2, -7);
-    const active = tcEmployees.filter(function(e){ return e.active; });
+    const active = tcEmployees.filter(function(e){ return e.active && !e.is_admin; });
     const lines = [['Employee','Email','Week ' + w1,'Week ' + w2,'Total','Rate','Pay'].join(',')];
     active.forEach(function(e){
       function hrs(wk){ const r = tcHoursRows.find(function(x){ return x.user_id === e.user_id && x.week_ending === wk; }); return r ? +r.hours : 0; }
@@ -2073,6 +2075,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         is_admin: document.getElementById('teAdmin').checked,
         active: document.getElementById('teActive').checked
       };
+      const myEmail = ((session && session.user && session.user.email) || '').toLowerCase();
+      if ((emp.email||'').toLowerCase() === myEmail && (!payload.is_admin || !payload.active)){
+        alert('You can\u2019t remove your own admin access or deactivate yourself \u2014 that would lock you out.');
+        return;
+      }
       const { error } = await SB.from('tc_employees').update(payload).eq('id', id);
       if (error){ alert('Update failed: ' + (error.message||'error')); return; }
       Object.assign(emp, payload);
