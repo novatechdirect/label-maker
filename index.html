@@ -657,6 +657,13 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .inv-menu-row{ width:100%; display:flex; gap:8px; padding-top:8px; flex-wrap:wrap; }
   .muted-sm{ font-size:12px; color:var(--muted); }
 
+  /* --- v18: spec dropdowns + mobo link --- */
+  .spec-select{ width:100%; border:1px solid var(--line-strong); border-radius:10px; padding:10px 12px; font-size:14px; background:var(--paper); color:var(--ink); }
+  .spec-select:focus{ outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-soft); }
+  .ram-pair{ display:flex; gap:8px; }
+  .ram-sticks{ width:76px; flex:0 0 auto; }
+  .mobo-hint{ font-weight:400; font-size:11px; color:var(--muted); text-transform:none; letter-spacing:0; }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -743,7 +750,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v17</span>
+      <span class="version" id="version">v18</span>
     </div>
   </div>
 </nav>
@@ -777,12 +784,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     <div class="spec-grid">
       <div class="field span2">
         <label for="case">Case</label>
-        <input id="case" type="text" value="Phantom" placeholder="e.g. Montech AIR 903">
+        <select id="case" class="spec-select"></select>
       </div>
-      <div class="field"><label for="cpu">CPU</label><input id="cpu" type="text" value="Ryzen 5 5500"></div>
-      <div class="field"><label for="gpu">GPU</label><input id="gpu" type="text" value="RTX 5050"></div>
-      <div class="field"><label for="ram">RAM</label><input id="ram" type="text" value="16GB DDR4"></div>
-      <div class="field"><label for="storage">Storage</label><input id="storage" type="text" value="1TB Nvme SSD"></div>
+      <div class="field"><label for="cpu">CPU <span class="mobo-hint" id="moboHint"></span></label><select id="cpu" class="spec-select"></select></div>
+      <div class="field"><label for="gpu">GPU</label><select id="gpu" class="spec-select"></select></div>
+      <div class="field"><label for="ram">RAM</label>
+        <div class="ram-pair">
+          <select id="ramSticks" class="spec-select ram-sticks"><option value="1">1x</option><option value="2">2x</option></select>
+          <select id="ram" class="spec-select"></select>
+        </div>
+      </div>
+      <div class="field"><label for="storage">Storage</label><select id="storage" class="spec-select"></select></div>
     </div>
   </section>
 
@@ -987,12 +999,20 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   let savedBatch = false;
   let session = null;
 
+  function cleanCaseName(n){ return String(n||'').replace(/\s*\bcases?\b\s*/ig,' ').replace(/\s+/g,' ').trim(); }
+  function cleanRamName(n){ return String(n||'').replace(/^ram\s+/i,'').trim(); }
+  function ramDisplay(){
+    const sticks = parseInt(ramSticksEl.value, 10) || 1;
+    const base = cleanRamName(ramEl.value);
+    if (!base) return '';
+    return (sticks > 1 ? sticks + 'x ' : '') + base;
+  }
   function getSpecObj(){
     return {
-      case: caseEl.value.trim(),
+      case: cleanCaseName(caseEl.value),
       cpu: cpuEl.value.trim(),
       gpu: gpuEl.value.trim(),
-      ram: ramEl.value.trim(),
+      ram: ramDisplay(),
       storage: storageEl.value.trim()
     };
   }
@@ -1259,11 +1279,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       session = s;
       renderAuth();
       updateSaveEnabled();
-      if (s) loadHistory();
+      if (s){ loadHistory(); if (!invLoaded){ invLoaded = true; loadInventory(); } }
     });
     renderAuth();
     updateSaveEnabled();
-    if (session) loadHistory();
+    if (session){ loadHistory(); if (!invLoaded){ invLoaded = true; loadInventory(); } }
   }
 
   function renderAuth(){
@@ -1348,8 +1368,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     sheetBtn.textContent = 'Saved \u2713';
     sheetBtn.classList.add('saved');
     sheetStatus.className = 'sheet-status ok';
-    sheetStatus.textContent = 'Saved ' + added + ' row' + (added===1?'':'s') +
+    let msg = 'Saved ' + added + ' row' + (added===1?'':'s') +
       (skipped ? (', skipped ' + skipped + ' already logged') : '') + '.';
+    const ded = await deductForBuild(added, orderEl.value.trim());
+    if (ded.moves) msg += ' Inventory updated \u2014 ' + ded.moves + ' part types deducted.';
+    if (ded.warn.length) msg += ' \u26a0 ' + ded.warn.join('; ') + '.';
+    sheetStatus.textContent = msg;
     await loadHistory();
   }
 
@@ -1403,6 +1427,8 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   let invOpenAdjust = null;
   let invAddCat = null; // {id, sign} or {id, mode:'menu'|'count'|'edit'}
 
+  const ramSticksEl = document.getElementById('ramSticks');
+  const moboHintEl = document.getElementById('moboHint');
   const invBody = document.getElementById('invBody');
   const invSearch = document.getElementById('invSearch');
   const lowCard = document.getElementById('lowCard');
@@ -1417,6 +1443,32 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     invItems = data || [];
     renderInventory();
     loadInvMoves();
+  }
+
+  function populateSpecSelects(){
+    const map = [ ['case','cases','phantom'], ['cpu','cpus','5500'], ['gpu','gpus','5050'], ['ram','ram','16'], ['storage','storage','1tb'] ];
+    map.forEach(function(m){
+      const el = document.getElementById(m[0]);
+      if (!el || el.tagName !== 'SELECT') return;
+      const prev = el.value;
+      const opts = invItems.filter(function(it){ return it.category === m[1] && it.track_qty; });
+      el.innerHTML = opts.length
+        ? opts.map(function(it){ return '<option value="' + esc(it.name) + '">' + esc(it.name) + '</option>'; }).join('')
+        : '<option value="">(none in inventory)</option>';
+      if (prev && opts.some(function(it){ return it.name === prev; })) el.value = prev;
+      else if (opts.length){
+        const pref = opts.find(function(it){ return it.name.toLowerCase().indexOf(m[2]) > -1; });
+        if (pref) el.value = pref.name;
+      }
+    });
+    updateMoboHint();
+  }
+  function invByName(n){ return invItems.find(function(it){ return it.name === n; }); }
+  function updateMoboHint(){
+    if (!moboHintEl) return;
+    const cpu = invByName(cpuEl.value);
+    const mobo = cpu && cpu.mobo_id ? invItems.find(function(it){ return String(it.id) === String(cpu.mobo_id); }) : null;
+    moboHintEl.textContent = mobo ? ('\u2192 ' + mobo.name) : (cpu ? '\u2192 no motherboard linked' : '');
   }
 
   function isLow(it){
@@ -1450,6 +1502,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       catItems.forEach(function(it){ htmlOut += rowHtml(it); });
     });
     invBody.innerHTML = htmlOut;
+    populateSpecSelects();
   }
 
   function addRowHtml(cat){
@@ -1466,9 +1519,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     const low = isLow(it);
     let inner;
     if (it.track_qty){
+      let moboTag = '';
+      if (it.category === 'cpus'){
+        const mb = it.mobo_id ? invItems.find(function(x){ return String(x.id) === String(it.mobo_id); }) : null;
+        moboTag = mb ? (' \u00b7 \u2192 ' + esc(mb.name)) : ' \u00b7 no MB linked';
+      }
       inner =
         '<span class="inv-name" data-menu="' + it.id + '">' + esc(it.name) +
-          '<span class="thr">low at ' + (it.low_at|0) + '</span></span>' +
+          '<span class="thr">low at ' + (it.low_at|0) + moboTag + '</span></span>' +
         '<span class="inv-qty' + ((it.qty|0)===0 ? ' zero' : '') + '">' + (it.qty|0) + '</span>' +
         '<span class="inv-btns">' +
           '<button type="button" class="qbtn" data-adj="-" data-id="' + it.id + '">\u2212</button>' +
@@ -1516,6 +1574,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         extra = '<span class="adjust-bar">' +
           '<span class="lbl">Name</span><input type="text" id="editName" value="' + esc(it.name) + '" style="flex:1;min-width:140px;">' +
           (it.track_qty ? '<span class="lbl">Low at</span><input type="number" min="0" step="1" id="editLow" value="' + (it.low_at|0) + '">' : '') +
+          (it.category === 'cpus' ? ('<span class="lbl">MB</span><select id="editMobo" class="sel-sm"><option value="">\u2014 none \u2014</option>' +
+            invItems.filter(function(x){ return x.category === 'motherboards'; }).map(function(x){
+              return '<option value="' + x.id + '"' + (String(it.mobo_id||'') === String(x.id) ? ' selected' : '') + '>' + esc(x.name) + '</option>';
+            }).join('') + '</select>') : '') +
           '<button type="button" class="primary btn-sm" data-applyedit="' + it.id + '">Save</button>' +
           '<button type="button" class="ghost btn-sm" data-cancel="1">Cancel</button>' +
         '</span>';
@@ -1609,6 +1671,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       const payload = {};
       if (name && name !== it.name) payload.name = name;
       if (lowEl){ const la = parseInt(lowEl.value, 10); if (!isNaN(la) && la >= 0) payload.low_at = la; }
+      const moboSel = document.getElementById('editMobo');
+      if (moboSel){
+        const mv = moboSel.value ? parseInt(moboSel.value, 10) : null;
+        if (String(mv||'') !== String(it.mobo_id||'')) payload.mobo_id = mv;
+      }
       if (Object.keys(payload).length){
         const u = await SB.from('inv_items').update(payload).eq('id', it.id);
         if (u.error){ alert('Update failed: ' + (u.error.message||'error')); return; }
@@ -1640,6 +1707,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   });
 
   invSearch.addEventListener('input', function(){ invOpenAdjust = null; invAddCat = null; renderInventory(); });
+  cpuEl.addEventListener('change', updateMoboHint);
   document.getElementById('invRefresh').addEventListener('click', loadInventory);
 
   /* ---- activity history ---- */
@@ -1740,6 +1808,51 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     histPageInfo.textContent = total === 0
       ? 'No matching records'
       : ('Showing ' + (startIdx + 1) + '\u2013' + Math.min(startIdx + PAGE_SIZE, total) + ' of ' + total);
+  }
+
+  async function deductForBuild(n, orderNo){
+    if (!n) return { moves: 0, warn: [] };
+    if (!invItems.length) return { moves: 0, warn: ['inventory not loaded \u2014 nothing deducted'] };
+    const warn = [];
+    const ded = [];
+    function want(sel, label){
+      const it = invByName(sel);
+      if (!it){ warn.push(label + ' \u201c' + sel + '\u201d not found in inventory'); return null; }
+      return it;
+    }
+    const caseIt = want(caseEl.value, 'case');   if (caseIt) ded.push({ it: caseIt, amt: n });
+    const cpuIt  = want(cpuEl.value, 'CPU');     if (cpuIt)  ded.push({ it: cpuIt, amt: n });
+    const gpuIt  = want(gpuEl.value, 'GPU');     if (gpuIt)  ded.push({ it: gpuIt, amt: n });
+    const storIt = want(storageEl.value, 'storage'); if (storIt) ded.push({ it: storIt, amt: n });
+    const ramIt  = want(ramEl.value, 'RAM');
+    const sticks = parseInt(ramSticksEl.value, 10) || 1;
+    if (ramIt) ded.push({ it: ramIt, amt: n * sticks });
+    if (cpuIt){
+      if (cpuIt.mobo_id){
+        const mobo = invItems.find(function(x){ return String(x.id) === String(cpuIt.mobo_id); });
+        if (mobo) ded.push({ it: mobo, amt: n });
+        else warn.push('linked motherboard for ' + cpuIt.name + ' not found');
+      } else warn.push('no motherboard linked to ' + cpuIt.name + ' \u2014 none deducted');
+    }
+    const moves = [];
+    const actor = (session && session.user && session.user.email) || null;
+    const note = 'Order ' + (orderNo || '?') + ' \u00b7 ' + n + ' PC' + (n===1?'':'s');
+    for (const dd of ded){
+      const after = (dd.it.qty|0) - dd.amt;
+      const u = await SB.from('inv_items').update({ qty: after }).eq('id', dd.it.id);
+      if (u.error){ warn.push('could not update ' + dd.it.name); continue; }
+      dd.it.qty = after;
+      moves.push({ item_id: dd.it.id, item_name: dd.it.name, delta: -dd.amt, qty_after: after, reason: 'build', note: note, actor: actor });
+    }
+    if (moves.length){
+      await SB.from('inv_moves').insert(moves);
+      moves.slice().reverse().forEach(function(m){
+        invMovesRows.unshift(Object.assign({ id: 'local' + Math.random(), created_at: new Date().toISOString() }, m));
+      });
+      renderInvMoves();
+      renderInventory();
+    }
+    return { moves: moves.length, warn: warn };
   }
 
   async function deleteRow(id){
