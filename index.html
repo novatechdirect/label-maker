@@ -673,6 +673,36 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .tc-edit-input{ width:90px; border:1px solid var(--line-strong); border-radius:8px; padding:5px 8px; font-size:12.5px; }
   .tc-edit-wide{ width:100%; min-width:120px; border:1px solid var(--line-strong); border-radius:8px; padding:5px 8px; font-size:12.5px; }
 
+  /* --- v23: home tiles --- */
+  .tile-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(250px, 1fr)); gap:14px; }
+  .tile{ display:flex; align-items:center; gap:14px; background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:var(--shadow); text-decoration:none; color:var(--ink); cursor:pointer; transition:box-shadow .12s ease, transform .06s ease; }
+  .tile:hover{ box-shadow:0 4px 14px rgba(16,24,40,.10); }
+  .tile:active{ transform:scale(.985); }
+  .tile-icon{ font-size:26px; width:52px; height:52px; display:flex; align-items:center; justify-content:center; background:var(--soft); border-radius:13px; flex:0 0 auto; }
+  .tile-body{ display:flex; flex-direction:column; min-width:0; }
+  .tile-title{ font-weight:700; font-size:15.5px; }
+  .tile-desc{ font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .tile-status{ font-size:12.5px; margin-top:8px; font-weight:600; color:var(--muted); }
+  .tile-status.ok{ color:#1e7b34; }
+  .tile-status.warn{ color:#b42318; }
+  .tile-arrow{ margin-left:auto; color:var(--muted); font-size:24px; flex:0 0 auto; }
+
+  /* --- v23: mobile polish --- */
+  @media (max-width:700px){
+    .nav-inner{ gap:10px; padding:0 12px; height:52px; }
+    .nav-menu{ flex:1; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+    .nav-menu::-webkit-scrollbar{ display:none; }
+    .nav-item{ padding:6px 9px; font-size:12px; white-space:nowrap; }
+    .nav-logo{ height:22px; }
+    .chip-email{ display:none; }
+    .version{ display:none; }
+    .controls{ padding:18px 12px 60px; }
+    .bar{ flex-wrap:wrap; }
+    .qbtn{ width:36px; height:36px; }
+    .hist-toolbar{ flex-wrap:wrap; }
+    .tile{ padding:15px; }
+  }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -754,13 +784,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <span class="nav-wordmark" id="logoText" style="display:none;">NOVATECH</span>
     </a>
     <div class="nav-menu">
-      <a class="nav-item active" href="#" id="navLabels">B2B Label Maker</a>
+      <a class="nav-item active" href="#" id="navHome">Home</a>
+      <a class="nav-item" href="#" id="navLabels">B2B Label Maker</a>
       <a class="nav-item" href="#" id="navInventory">Inventory</a>
       <a class="nav-item" href="#" id="navTimeclock">Timeclock</a>
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v21</span>
+      <span class="version" id="version">v23</span>
     </div>
   </div>
 </nav>
@@ -779,7 +810,48 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   </div>
 
   <div id="appView" style="display:none;">
-  <div id="toolLabels">
+
+  <div id="toolHome">
+    <header class="app-header">
+      <div class="brand">
+        <div>
+          <h1 id="homeGreet">Welcome</h1>
+          <p class="tagline">Novatech tools</p>
+        </div>
+      </div>
+    </header>
+    <div class="tile-grid" id="tileGrid">
+      <a class="tile" href="#" data-goto="labels">
+        <span class="tile-icon">&#127991;&#65039;</span>
+        <span class="tile-body">
+          <span class="tile-title">B2B Label Maker</span>
+          <span class="tile-desc">Box + Dymo labels, NT serials, order log</span>
+          <span class="tile-status" id="tileLabelStatus">&hellip;</span>
+        </span>
+        <span class="tile-arrow">&rsaquo;</span>
+      </a>
+      <a class="tile" href="#" data-goto="inventory">
+        <span class="tile-icon">&#128230;</span>
+        <span class="tile-body">
+          <span class="tile-title">Inventory</span>
+          <span class="tile-desc">Parts on hand, low stock, activity</span>
+          <span class="tile-status" id="tileInvStatus">&hellip;</span>
+        </span>
+        <span class="tile-arrow">&rsaquo;</span>
+      </a>
+      <a class="tile" href="#" data-goto="timeclock">
+        <span class="tile-icon">&#9201;&#65039;</span>
+        <span class="tile-body">
+          <span class="tile-title">Timeclock</span>
+          <span class="tile-desc">Weekly hours, bi-weekly pay</span>
+          <span class="tile-status" id="tileTcStatus">&hellip;</span>
+        </span>
+        <span class="tile-arrow">&rsaquo;</span>
+      </a>
+    </div>
+  </div><!-- /toolHome -->
+
+  <div id="toolLabels" style="display:none;">
   <header class="app-header">
     <div class="brand">
       <div>
@@ -963,7 +1035,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
     <section class="card">
       <h2 class="card-title">My hours</h2>
-      <div id="tcNoProfile" style="display:none;"><p class="muted-line">You\u2019re signed in, but not on the team roster yet. Ask the admin to add you.</p></div>
+      <div id="tcNoProfile" style="display:none;"><p class="muted-line">You&rsquo;re signed in, but not on the team roster yet. Ask the admin to add you.</p></div>
       <div id="tcMine" style="display:none;">
         <div class="tc-entry">
           <div class="field">
@@ -1367,17 +1439,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       session = s;
       renderAuth();
       updateSaveEnabled();
-      if (s){ loadHistory(); if (!invLoaded){ invLoaded = true; loadInventory(); } }
+      if (s){ loadHistory(); if (!invLoaded){ invLoaded = true; loadInventory(); } if (!tcInited){ tcInited = true; tcLoadAll(); } }
     });
     renderAuth();
     updateSaveEnabled();
-    if (session){ loadHistory(); if (!invLoaded){ invLoaded = true; loadInventory(); } }
+    if (session){ loadHistory(); if (!invLoaded){ invLoaded = true; loadInventory(); } if (!tcInited){ tcInited = true; tcLoadAll(); } }
   }
 
   function renderAuth(){
     if (session && session.user){
       authChip.style.display = '';
-      authChip.innerHTML = session.user.email + ' <a id="signOutLink">Sign out</a>';
+      authChip.innerHTML = '<span class="chip-email">' + session.user.email + '</span> <a id="signOutLink">Sign out</a>';
       const link = document.getElementById('signOutLink');
       if (link) link.addEventListener('click', function(){ SB.auth.signOut(); });
       loginView.style.display = 'none';
@@ -1484,6 +1556,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     histPage = 0;
     histNote.textContent = '';
     renderHistory();
+    renderHomeStatus();
   }
   function esc(v){ return (v==null?'':String(v)).replace(/[&<>]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c]; }); }
 
@@ -1495,8 +1568,10 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   let invLoaded = false;
   const navTimeclock = document.getElementById('navTimeclock');
   const toolTimeclock = document.getElementById('toolTimeclock');
+  const navHome = document.getElementById('navHome');
+  const toolHome = document.getElementById('toolHome');
   function showTool(which){
-    const views = { labels: [navLabels, toolLabels], inventory: [navInventory, toolInventory], timeclock: [navTimeclock, toolTimeclock] };
+    const views = { home: [navHome, toolHome], labels: [navLabels, toolLabels], inventory: [navInventory, toolInventory], timeclock: [navTimeclock, toolTimeclock] };
     Object.keys(views).forEach(function(k){
       views[k][0].classList.toggle('active', k === which);
       views[k][1].style.display = (k === which) ? '' : 'none';
@@ -1504,6 +1579,11 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     if (which === 'inventory' && !invLoaded && SB && session){ invLoaded = true; loadInventory(); }
     if (which === 'timeclock' && SB && session){ tcOpen(); }
   }
+  navHome.addEventListener('click', function(e){ e.preventDefault(); showTool('home'); });
+  document.getElementById('tileGrid').addEventListener('click', function(e){
+    const t = e.target.closest('.tile');
+    if (t){ e.preventDefault(); showTool(t.getAttribute('data-goto')); }
+  });
   navLabels.addEventListener('click', function(e){ e.preventDefault(); showTool('labels'); });
   navInventory.addEventListener('click', function(e){ e.preventDefault(); showTool('inventory'); });
   navTimeclock.addEventListener('click', function(e){ e.preventDefault(); showTool('timeclock'); });
@@ -1595,6 +1675,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     });
     invBody.innerHTML = htmlOut;
     populateSpecSelects();
+    renderHomeStatus();
   }
 
   function addRowHtml(cat){
@@ -1906,6 +1987,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     tcAdminCard.style.display = tcIsAdmin ? '' : 'none';
     tcTeamCard.style.display = tcIsAdmin ? '' : 'none';
     if (tcIsAdmin){ initPeriodSelect(); renderTcSummary(); renderTcTeam(); }
+    renderHomeStatus();
   }
 
   function renderTcMine(){
@@ -1951,6 +2033,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     renderTcMine();
     tcSaveStatus.textContent = 'Saved \u2713';
     if (tcIsAdmin) renderTcSummary();
+    renderHomeStatus();
   });
 
   /* ---- admin: pay period summary ---- */
@@ -2103,6 +2186,47 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     }
   });
   function fmtDate(v){ if(!v) return ''; const d=new Date(v); return isNaN(d.getTime())?'':d.toLocaleDateString(); }
+
+  /* ---- home tiles status ---- */
+  function renderHomeStatus(){
+    const tl = document.getElementById('tileLabelStatus');
+    const ti = document.getElementById('tileInvStatus');
+    const tt = document.getElementById('tileTcStatus');
+    const greet = document.getElementById('homeGreet');
+    if (greet && session && session.user){
+      const nm = (tcMe && tcMe.name) ? tcMe.name.split(' ')[0] : (session.user.email || '').split('@')[0];
+      greet.textContent = 'Welcome back' + (nm ? ', ' + nm : '');
+    }
+    if (tl){
+      if (historyRows.length){
+        const r = historyRows[0];
+        tl.textContent = 'Last order: ' + (r.order_no || '\u2014') + ' \u00b7 ' + fmtDate(r.generated_at || r.created_at);
+        tl.className = 'tile-status';
+      } else { tl.textContent = 'No orders logged yet'; tl.className = 'tile-status'; }
+    }
+    if (ti){
+      if (invItems.length){
+        const lows = invItems.filter(isLow).length;
+        ti.textContent = lows ? (lows + ' item' + (lows===1?'':'s') + ' low') : 'All stocked \u2713';
+        ti.className = 'tile-status ' + (lows ? 'warn' : 'ok');
+      } else { ti.textContent = '\u2026'; ti.className = 'tile-status'; }
+    }
+    if (tt){
+      if (!tcMe){ tt.textContent = 'Not on the roster yet'; tt.className = 'tile-status'; }
+      else if (tcIsAdmin){
+        const wk = fridayList(1).def;
+        const staff = tcEmployees.filter(function(e){ return e.active && !e.is_admin; });
+        const done = staff.filter(function(e){ return tcHoursRows.some(function(r){ return r.user_id === e.user_id && r.week_ending === wk; }); }).length;
+        tt.textContent = done + ' of ' + staff.length + ' submitted this week';
+        tt.className = 'tile-status ' + (staff.length && done === staff.length ? 'ok' : '');
+      } else {
+        const wk = fridayList(1).def;
+        const row = tcHoursRows.find(function(r){ return r.user_id === tcMe.user_id && r.week_ending === wk; });
+        if (row){ tt.textContent = 'This week: ' + (+row.hours) + ' hrs \u2713'; tt.className = 'tile-status ok'; }
+        else { tt.textContent = 'This week not submitted yet'; tt.className = 'tile-status warn'; }
+      }
+    }
+  }
   function getFiltered(){
     const q = (histSearch.value || '').trim().toLowerCase();
     const fromT = histFrom.value ? new Date(histFrom.value + 'T00:00:00') : null;
