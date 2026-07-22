@@ -20,6 +20,11 @@ jobs:
           if [ -z "$MSG" ] || [ "$MSG" = "null" ]; then
             echo "No report returned (check LOWSTOCK_TOKEN matches the SQL function)"; exit 1
           fi
-          echo "$MSG" | jq '{content: .}' > payload.json
+          # Ping people only when something is actually low
+          if echo "$MSG" | grep -q "All good"; then
+            echo "$MSG" | jq '{content: .}' > payload.json
+          else
+            echo "$MSG" | jq '{content: ("<@392524726767190017> @everyone\n" + .)}' > payload.json
+          fi
           curl -s -X POST -H "Content-Type: application/json" \
             -d @payload.json "${{ secrets.DISCORD_WEBHOOK }}"
