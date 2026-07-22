@@ -703,6 +703,12 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     .tile{ padding:15px; }
   }
 
+  /* --- v25: builds possible --- */
+  .builds-line{ margin-top:14px; font-size:13px; font-weight:600; color:var(--muted); padding:9px 12px; background:var(--soft); border-radius:10px; }
+  .builds-line b{ font-size:15px; color:var(--ink); }
+  .builds-line.warn{ background:#fdecea; color:#b42318; }
+  .builds-line.warn b{ color:#b42318; }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -791,7 +797,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v24</span>
+      <span class="version" id="version">v25</span>
     </div>
   </div>
 </nav>
@@ -878,6 +884,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       </div>
       <div class="field"><label for="storage">Storage</label><select id="storage" class="spec-select"></select></div>
     </div>
+    <div class="builds-line" id="buildsLine" style="display:none;"></div>
   </section>
 
   <section class="card">
@@ -1090,7 +1097,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       <h2 class="card-title">Team <span class="mobo-hint">(admin)</span></h2>
       <div class="table-wrap">
         <table class="hist-table">
-          <thead><tr><th>Name</th><th>Email</th><th>Rate $/hr</th><th>Admin</th><th>Active</th><th></th></tr></thead>
+          <thead><tr><th>Name</th><th>Email</th><th>Rate $/hr</th><th>Discord</th><th>Admin</th><th>Active</th><th></th></tr></thead>
           <tbody id="tcTeamBody"></tbody>
         </table>
       </div>
@@ -1634,8 +1641,41 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       }
     });
     updateMoboHint();
+    renderBuildsPossible();
   }
   function invByName(n){ return invItems.find(function(it){ return it.name === n; }); }
+  function renderBuildsPossible(){
+    const el = document.getElementById('buildsLine');
+    if (!el) return;
+    if (!invItems.length){ el.style.display = 'none'; return; }
+    const parts = [];
+    const caseIt = invByName(caseEl.value); if (caseIt) parts.push({ it: caseIt, per: 1 });
+    const cpuIt  = invByName(cpuEl.value);  if (cpuIt)  parts.push({ it: cpuIt, per: 1 });
+    const gpuIt  = invByName(gpuEl.value);  if (gpuIt)  parts.push({ it: gpuIt, per: 1 });
+    const storIt = invByName(storageEl.value); if (storIt) parts.push({ it: storIt, per: 1 });
+    const ramIt  = invByName(ramEl.value);
+    const sticks = parseInt(ramSticksEl.value, 10) || 1;
+    if (ramIt) parts.push({ it: ramIt, per: sticks });
+    if (cpuIt && cpuIt.mobo_id){
+      const mb = invItems.find(function(x){ return String(x.id) === String(cpuIt.mobo_id); });
+      if (mb) parts.push({ it: mb, per: 1 });
+    }
+    if (parts.length < 5){ el.style.display = 'none'; return; }
+    let min = Infinity, lim = null;
+    parts.forEach(function(p){
+      const can = Math.floor(Math.max(p.it.qty|0, 0) / p.per);
+      if (can < min){ min = can; lim = p; }
+    });
+    el.style.display = '';
+    if (min <= 0){
+      el.className = 'builds-line warn';
+      el.innerHTML = 'Builds possible with parts on hand: <b>0</b> \u00b7 out of ' + esc(lim.it.name);
+    } else {
+      el.className = 'builds-line' + (min <= 5 ? ' warn' : '');
+      el.innerHTML = 'Builds possible with parts on hand: <b>' + min + '</b> \u00b7 limited by ' + esc(lim.it.name) +
+        ' (' + Math.max(lim.it.qty|0,0) + ' left' + (lim.per > 1 ? ', ' + lim.per + ' per build' : '') + ')';
+    }
+  }
   function updateMoboHint(){
     if (!moboHintEl) return;
     const cpu = invByName(cpuEl.value);
@@ -1881,6 +1921,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
 
   invSearch.addEventListener('input', function(){ invOpenAdjust = null; invAddCat = null; renderInventory(); });
   cpuEl.addEventListener('change', updateMoboHint);
+  [caseEl, cpuEl, gpuEl, ramEl, storageEl, ramSticksEl].forEach(function(el){ el.addEventListener('change', renderBuildsPossible); });
   document.getElementById('invRefresh').addEventListener('click', loadInventory);
 
   /* ---- activity history ---- */
@@ -2110,6 +2151,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
           '<td><input class="tc-edit-wide" id="teName" value="' + esc(e.name||'') + '"></td>' +
           '<td><input class="tc-edit-wide" id="teEmail" value="' + esc(e.email||'') + '"></td>' +
           '<td><input class="tc-edit-input" id="teRate" type="number" min="0" step="0.25" value="' + (e.hourly_rate != null ? e.hourly_rate : '') + '"></td>' +
+          '<td><input class="tc-edit-wide" id="teDiscord" placeholder="Discord user ID" value="' + esc(e.discord_id||'') + '"></td>' +
           '<td><input type="checkbox" id="teAdmin"' + (e.is_admin ? ' checked' : '') + '></td>' +
           '<td><input type="checkbox" id="teActive"' + (e.active ? ' checked' : '') + '></td>' +
           '<td class="row-actions"><button class="mini" data-tesave="' + e.id + '">Save</button> <button class="mini" data-tecancel="1">Cancel</button></td>' +
@@ -2119,6 +2161,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         '<td>' + esc(e.name||'') + '</td>' +
         '<td>' + esc(e.email||'') + (e.user_id ? '' : ' <span class="mobo-hint">(not signed in yet)</span>') + '</td>' +
         '<td>' + (e.hourly_rate != null ? ('$' + (+e.hourly_rate).toFixed(2)) : '\u2014') + '</td>' +
+        '<td>' + (e.discord_id ? '\u2713' : '\u2014') + '</td>' +
         '<td>' + (e.is_admin ? '\u2713' : '') + '</td>' +
         '<td>' + (e.active ? '\u2713' : '\u2014') + '</td>' +
         '<td class="row-actions"><button class="mini" data-teedit="' + e.id + '">Edit</button></td>' +
@@ -2129,6 +2172,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         '<td><input class="tc-edit-wide" id="teName" placeholder="Name"></td>' +
         '<td><input class="tc-edit-wide" id="teEmail" placeholder="email@novatech.com"></td>' +
         '<td><input class="tc-edit-input" id="teRate" type="number" min="0" step="0.25" placeholder="rate"></td>' +
+        '<td><input class="tc-edit-wide" id="teDiscord" placeholder="Discord user ID"></td>' +
         '<td><input type="checkbox" id="teAdmin"></td>' +
         '<td><input type="checkbox" id="teActive" checked></td>' +
         '<td class="row-actions"><button class="mini" data-teadd="1">Add</button> <button class="mini" data-tecancel="1">Cancel</button></td>' +
@@ -2155,6 +2199,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         name: document.getElementById('teName').value.trim(),
         email: document.getElementById('teEmail').value.trim().toLowerCase(),
         hourly_rate: rateV === '' ? null : parseFloat(rateV),
+        discord_id: (document.getElementById('teDiscord').value.trim() || null),
         is_admin: document.getElementById('teAdmin').checked,
         active: document.getElementById('teActive').checked
       };
@@ -2174,6 +2219,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
         name: document.getElementById('teName').value.trim(),
         email: document.getElementById('teEmail').value.trim().toLowerCase(),
         hourly_rate: rateV === '' ? null : parseFloat(rateV),
+        discord_id: (document.getElementById('teDiscord').value.trim() || null),
         is_admin: document.getElementById('teAdmin').checked,
         active: document.getElementById('teActive').checked
       };
