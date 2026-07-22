@@ -4,6 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Novatech Dashboard</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ffffff">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Novatech">
 <!-- JsBarcode (inlined for offline use) -->
 <script>
 /*! JsBarcode v3.12.3 | (c) Johan Lindell | MIT license */
@@ -709,6 +716,17 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   .builds-line.warn{ background:#fdecea; color:#b42318; }
   .builds-line.warn b{ color:#b42318; }
 
+  /* --- v26: bottom tab bar --- */
+  .tabbar{ display:none; }
+  @media (max-width:700px){
+    .tabbar.on{ position:fixed; bottom:0; left:0; right:0; z-index:30; display:flex; background:var(--paper); border-top:1px solid var(--line); padding-bottom:env(safe-area-inset-bottom); box-shadow:0 -2px 10px rgba(16,24,40,.07); }
+    .tab-btn{ flex:1; display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 0 7px; background:none; border:none; font-size:10.5px; font-weight:600; color:var(--muted); cursor:pointer; }
+    .tab-btn svg{ width:22px; height:22px; }
+    .tab-btn.active{ color:var(--accent); }
+    body.authed .controls{ padding-bottom:calc(80px + env(safe-area-inset-bottom)); }
+    body.authed .nav-menu{ display:none; }
+  }
+
   /* ---------- THE LABEL (4 x 6) ---------- */
   .label{
     width:4in;
@@ -771,7 +789,7 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
   @media print{
     @page{ size:4in 6in; margin:0; }
     html,body{background:#fff; margin:0; padding:0;}
-    .controls, .topnav{ display:none !important; }
+    .controls, .topnav, .tabbar{ display:none !important; }
     #printArea{ display:block !important; }
     .label{
       page-break-after:always;
@@ -797,9 +815,28 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     </div>
     <div class="nav-right">
       <span class="auth-chip" id="authChip" style="display:none;"></span>
-      <span class="version" id="version">v25</span>
+      <span class="version" id="version">v26</span>
     </div>
   </div>
+</nav>
+
+<nav class="tabbar" id="tabbar">
+  <button type="button" class="tab-btn active" data-goto="home">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    <span>Home</span>
+  </button>
+  <button type="button" class="tab-btn" data-goto="labels">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>
+    <span>Labels</span>
+  </button>
+  <button type="button" class="tab-btn" data-goto="inventory">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+    <span>Inventory</span>
+  </button>
+  <button type="button" class="tab-btn" data-goto="timeclock">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+    <span>Timeclock</span>
+  </button>
 </nav>
 
 <div class="controls">
@@ -1461,10 +1498,14 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
       if (link) link.addEventListener('click', function(){ SB.auth.signOut(); });
       loginView.style.display = 'none';
       appView.style.display = '';
+      document.getElementById('tabbar').classList.add('on');
+      document.body.classList.add('authed');
     } else {
       authChip.style.display = 'none';
       loginView.style.display = '';
       appView.style.display = 'none';
+      document.getElementById('tabbar').classList.remove('on');
+      document.body.classList.remove('authed');
     }
   }
 
@@ -1585,8 +1626,16 @@ function(t){t.__bidiEngine__=t.prototype.__bidiEngine__=function(t){var n,r,i,a,
     });
     if (which === 'inventory' && !invLoaded && SB && session){ invLoaded = true; loadInventory(); }
     if (which === 'timeclock' && SB && session){ tcOpen(); }
+    document.querySelectorAll('#tabbar .tab-btn').forEach(function(b){
+      b.classList.toggle('active', b.getAttribute('data-goto') === which);
+    });
+    document.documentElement.scrollTop = 0; document.body.scrollTop = 0;
   }
   navHome.addEventListener('click', function(e){ e.preventDefault(); showTool('home'); });
+  document.getElementById('tabbar').addEventListener('click', function(e){
+    const b = e.target.closest('.tab-btn');
+    if (b) showTool(b.getAttribute('data-goto'));
+  });
   document.getElementById('tileGrid').addEventListener('click', function(e){
     const t = e.target.closest('.tile');
     if (t){ e.preventDefault(); showTool(t.getAttribute('data-goto')); }
